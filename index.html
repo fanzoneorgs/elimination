@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Rogue Glyph</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cormorant+SC:wght@500;700&family=IBM+Plex+Mono:wght@400;600&family=Noto+Sans+Symbols+2&display=swap');
+
+    :root {
+      --bg: #080808;
+      --bg-soft: #111111;
+      --panel: rgba(18, 18, 18, 0.96);
+      --panel-line: rgba(236, 229, 216, 0.12);
+      --tile: rgba(255, 255, 255, 0.035);
+      --tile-hover: rgba(255, 255, 255, 0.07);
+      --tile-active: rgba(255, 255, 255, 0.09);
+      --text: #ece5d8;
+      --muted: #a99f90;
+      --wrong: #9e3d3d;
+      --correct: #78846f;
+      --shadow: 0 22px 52px rgba(0, 0, 0, 0.55);
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "IBM Plex Mono", monospace;
+      user-select: none;
+    }
+
+    body {
+      min-height: 100dvh;
+      position: relative;
+      overscroll-behavior: none;
+      background:
+        radial-gradient(circle at 50% 10%, rgba(255,255,255,0.045), transparent 24%),
+        radial-gradient(circle at 50% 100%, rgba(130,130,130,0.05), transparent 28%),
+        linear-gradient(180deg, #141414 0%, #0a0a0a 56%, #060606 100%);
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background: repeating-linear-gradient(90deg, rgba(255,255,255,0) 0 64px, rgba(255,255,255,0.018) 64px 66px, rgba(255,255,255,0) 66px 128px);
+      opacity: 0.25;
+      mix-blend-mode: screen;
+    }
+
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at 22% 25%, rgba(255,255,255,0.035), transparent 18%),
+        radial-gradient(circle at 78% 66%, rgba(255,255,255,0.03), transparent 20%),
+        radial-gradient(circle at 50% 48%, rgba(255,255,255,0.02), transparent 28%);
+      filter: blur(10px);
+      opacity: 0.9;
+    }
+
+    .screen {
+      display: none;
+      width: 100vw;
+      height: 100dvh;
+      position: relative;
+      z-index: 1;
+    }
+
+    .screen.active {
+      display: block;
+    }
+
+    #startScreen.active,
+    #countdownScreen.active,
+    #endScreen.active {
+      display: grid;
+      place-items: center;
+      padding: 20px;
+    }
+
+    .card,
+    .game-card,
+    .end-card {
+      width: min(680px, 92vw);
+      background: var(--panel);
+      border: 1px solid var(--panel-line);
+      box-shadow: var(--shadow);
+    }
+
+    .card,
+    .end-card {
+      padding: 42px 26px 30px;
+      text-align: center;
+    }
+
+    .title,
+    .end-title {
+      margin: 0;
+      font-family: "Cormorant SC", serif;
+      font-weight: 700;
+      line-height: 0.9;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text);
+    }
+
+    .title {
+      font-size: clamp(54px, 10vw, 92px);
+    }
+
+    .end-title {
+      font-size: clamp(48px, 8vw, 78px);
+    }
+
+    .subtitle,
+    .stats-line {
+      margin: 20px auto 0;
+      max-width: 560px;
+      color: var(--muted);
+      font-size: clamp(14px, 2vw, 18px);
+      line-height: 1.65;
+    }
+
+    .main-btn {
+      margin-top: 26px;
+      appearance: none;
+      border: 1px solid rgba(236,229,216,0.18);
+      background: rgba(255,255,255,0.04);
+      color: var(--text);
+      min-width: 180px;
+      padding: 13px 22px;
+      font-family: "Cormorant SC", serif;
+      font-size: clamp(22px, 3vw, 32px);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background 0.12s ease, border-color 0.12s ease, transform 0.12s ease;
+    }
+
+    .main-btn:hover {
+      background: rgba(255,255,255,0.08);
+      border-color: rgba(236,229,216,0.32);
+      transform: translateY(-1px);
+    }
+
+    .main-btn:active {
+      transform: translateY(1px);
+      background: rgba(255,255,255,0.10);
+    }
+
+    #countdownScreen {
+      background: radial-gradient(circle at center, rgba(255,255,255,0.04), rgba(0,0,0,0.3));
+    }
+
+    .count-number {
+      font-family: "Cormorant SC", serif;
+      font-size: clamp(120px, 24vw, 250px);
+      letter-spacing: 0.08em;
+      color: var(--text);
+      animation: countPop 0.72s ease both;
+    }
+
+    @keyframes countPop {
+      0% { opacity: 0; transform: scale(0.82); }
+      50% { opacity: 1; transform: scale(1.05); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+
+    #gameScreen {
+      padding: 74px 12px 12px;
+    }
+
+    .hud {
+      position: fixed;
+      top: max(10px, env(safe-area-inset-top));
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      background: rgba(10, 10, 10, 0.95);
+      border: 1px solid rgba(236,229,216,0.12);
+      box-shadow: 0 10px 25px rgba(0,0,0,0.35);
+      color: var(--text);
+      font-size: clamp(13px, 2vw, 17px);
+      white-space: nowrap;
+    }
+
+    .hud-label {
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+
+    .divider {
+      width: 1px;
+      height: 16px;
+      background: rgba(236,229,216,0.14);
+    }
+
+    .penalty-pop {
+      position: fixed;
+      top: max(56px, calc(env(safe-area-inset-top) + 44px));
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 30;
+      opacity: 0;
+      pointer-events: none;
+      color: #c99090;
+      font-family: "Cormorant SC", serif;
+      font-size: clamp(20px, 3vw, 28px);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .penalty-pop.show {
+      animation: penaltyRise 0.8s ease both;
+    }
+
+    @keyframes penaltyRise {
+      0% { opacity: 0; transform: translate(-50%, 8px); }
+      20% { opacity: 1; transform: translate(-50%, 0); }
+      100% { opacity: 0; transform: translate(-50%, -22px); }
+    }
+
+    .game-stage {
+      width: min(920px, 100%);
+      height: min(720px, calc(100dvh - 94px));
+      min-height: 460px;
+      margin: 0 auto;
+      display: grid;
+      place-items: center;
+    }
+
+    .game-card {
+      width: min(740px, 100%);
+      padding: 18px 18px 18px;
+      background: rgba(16, 16, 16, 0.97);
+      border: 1px solid rgba(236,229,216,0.10);
+    }
+
+    .rule-text {
+      margin: 0 0 14px;
+      text-align: center;
+      font-family: "Cormorant SC", serif;
+      font-size: clamp(26px, 4vw, 40px);
+      line-height: 1.05;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      color: var(--text);
+    }
+
+    .grid-shell {
+      width: 100%;
+      display: grid;
+      place-items: center;
+      padding: 10px;
+      background: rgba(255,255,255,0.018);
+      border: 1px solid rgba(236,229,216,0.08);
+    }
+
+    .symbol-grid {
+      width: min(100%, 86vw, 500px, calc(100dvh - 215px));
+      aspect-ratio: 1 / 1;
+      display: grid;
+      grid-template-columns: repeat(var(--grid-size), 1fr);
+      grid-template-rows: repeat(var(--grid-size), 1fr);
+      gap: var(--grid-gap, 7px);
+    }
+
+    .symbol-button {
+      appearance: none;
+      min-width: 0;
+      min-height: 0;
+      padding: 0;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      background: var(--tile);
+      border: 1px solid rgba(236,229,216,0.10);
+      transition: background 0.12s ease, border-color 0.12s ease, transform 0.12s ease, box-shadow 0.12s ease;
+    }
+
+    .symbol-button:hover {
+      background: var(--tile-hover);
+      border-color: rgba(236,229,216,0.22);
+      transform: translateY(-1px);
+    }
+
+    .symbol-button:active {
+      background: var(--tile-active);
+      transform: translateY(0);
+    }
+
+    .symbol-button.correct {
+      pointer-events: none;
+      background: rgba(120,132,111,0.18);
+      border-color: rgba(120,132,111,0.34);
+      animation: foundFade 0.46s ease forwards;
+    }
+
+    .symbol-button.wrong {
+      background: rgba(158,61,61,0.16);
+      border-color: rgba(158,61,61,0.4);
+      box-shadow: 0 0 16px rgba(158,61,61,0.10);
+      animation: wrongShake 0.34s linear;
+    }
+
+    .glyph {
+      font-family: "Noto Sans Symbols 2", "Segoe UI Symbol", "Noto Sans Symbols", sans-serif;
+      font-size: clamp(18px, calc(280px / var(--grid-size)), 52px);
+      line-height: 1;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+      text-align: center;
+      transform: none;
+    }
+
+    .message {
+      min-height: 20px;
+      margin-top: 10px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .final-time {
+      margin: 20px auto 0;
+      display: inline-block;
+      padding: 12px 18px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(236,229,216,0.12);
+      color: var(--text);
+      font-family: "Cormorant SC", serif;
+      font-size: clamp(34px, 6vw, 56px);
+      letter-spacing: 0.12em;
+    }
+
+    .confetti {
+      position: fixed;
+      top: -20px;
+      width: 5px;
+      height: 14px;
+      background: var(--c);
+      opacity: 0.8;
+      pointer-events: none;
+      z-index: 40;
+      animation: fall var(--d) linear forwards;
+    }
+
+    @keyframes wrongShake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-5px); }
+      50% { transform: translateX(5px); }
+      75% { transform: translateX(-3px); }
+    }
+
+    @keyframes foundFade {
+      0% { transform: scale(1); opacity: 1; }
+      45% { transform: scale(1.08); opacity: 1; }
+      100% { transform: scale(0.15); opacity: 0; }
+    }
+
+    @keyframes fall {
+      to { transform: translateY(115dvh) rotate(360deg); }
+    }
+
+    @media (max-width: 720px) {
+      #startScreen.active,
+      #countdownScreen.active,
+      #endScreen.active {
+        padding: 14px;
+      }
+
+      .card,
+      .end-card {
+        width: min(420px, 94vw);
+        padding: 34px 18px 24px;
+      }
+
+      .subtitle,
+      .stats-line {
+        font-size: 14px;
+      }
+
+      .main-btn {
+        width: 100%;
+        min-width: 0;
+      }
+
+      #gameScreen {
+        padding: max(60px, calc(env(safe-area-inset-top) + 56px)) 8px 8px;
+      }
+
+      .hud {
+        gap: 7px;
+        padding: 8px 10px;
+        font-size: 12px;
+      }
+
+      .game-stage {
+        height: calc(100dvh - 78px - env(safe-area-inset-top));
+        min-height: 430px;
+        width: 100%;
+      }
+
+      .game-card {
+        width: 100%;
+        padding: 12px;
+      }
+
+      .rule-text {
+        font-size: clamp(22px, 6vw, 30px);
+        margin-bottom: 12px;
+      }
+
+      .grid-shell {
+        padding: 8px;
+      }
+
+      .symbol-grid {
+        width: min(100%, 90vw, 360px, calc(100dvh - 190px));
+        gap: var(--grid-gap-mobile, 4px);
+      }
+
+      .glyph {
+        font-size: clamp(17px, calc(220px / var(--grid-size)), 34px);
+      }
+
+      .message {
+        font-size: 12px;
+      }
+    }
+
+    @media (max-height: 650px) and (orientation: landscape) {
+      #gameScreen {
+        padding-top: 56px;
+      }
+
+      .game-stage {
+        height: calc(100dvh - 68px);
+        min-height: 320px;
+      }
+
+      .symbol-grid {
+        width: min(100%, 74vh, 460px);
+      }
+
+      .rule-text {
+        font-size: clamp(20px, 3vw, 28px);
+      }
+    }
+  </style>
+</head>
+<body>
+  <main id="startScreen" class="screen active">
+    <section class="card">
+      <h1 class="title">Rogue<br>Glyph</h1>
+      <p class="subtitle">A grid of symbols appears. Every icon has one matching pair, except for a single odd one out. Find the lonely symbol and click it.</p>
+      <button id="startBtn" class="main-btn" type="button">Start</button>
+    </section>
+  </main>
+
+  <section id="countdownScreen" class="screen">
+    <div class="count-number" id="countNumber">3</div>
+  </section>
+
+  <section id="gameScreen" class="screen">
+    <div class="hud">
+      <span class="hud-label">Time</span>
+      <span id="timer">00:00.0</span>
+      <span class="divider"></span>
+      <span class="hud-label">Round</span>
+      <span id="roundCounter">1/15</span>
+    </div>
+
+    <div class="penalty-pop" id="penaltyPop">+10 Seconds</div>
+
+    <div class="game-stage">
+      <section class="game-card">
+        <p class="rule-text" id="ruleText">Click the icon that has no matching pair.</p>
+        <div class="grid-shell">
+          <div class="symbol-grid" id="symbolGrid" aria-label="Symbol grid"></div>
+        </div>
+        <div class="message" id="message"></div>
+      </section>
+    </div>
+  </section>
+
+  <section id="endScreen" class="screen">
+    <section class="end-card">
+      <h2 class="end-title">Case<br>Closed</h2>
+      <div class="final-time" id="finalTime">00:00.0</div>
+      <p class="stats-line" id="statsLine">You found every odd icon.</p>
+      <button id="againBtn" class="main-btn" type="button">Play Again</button>
+    </section>
+  </section>
+
+  <script>
+    const startScreen = document.getElementById("startScreen")
+    const countdownScreen = document.getElementById("countdownScreen")
+    const gameScreen = document.getElementById("gameScreen")
+    const endScreen = document.getElementById("endScreen")
+    const startBtn = document.getElementById("startBtn")
+    const againBtn = document.getElementById("againBtn")
+    const countNumber = document.getElementById("countNumber")
+    const timerEl = document.getElementById("timer")
+    const roundCounter = document.getElementById("roundCounter")
+    const ruleText = document.getElementById("ruleText")
+    const symbolGrid = document.getElementById("symbolGrid")
+    const penaltyPop = document.getElementById("penaltyPop")
+    const finalTime = document.getElementById("finalTime")
+    const statsLine = document.getElementById("statsLine")
+    const message = document.getElementById("message")
+
+    const TOTAL_ROUNDS = 15
+    const confettiPalette = ["#ece5d8", "#a99f90", "#9e3d3d", "#78846f"]
+
+    const themePools = {
+      occult: ["☿","♀","♁","♂","♃","♄","♅","♆","♇","☉","☽","☾","☊","☋","☌","☍","♈","♉","♊","♋","♌","♍","♎","♏","♐","♑","♒","♓","⚚","⚛","⚜","⚝","⚕","☥","☦","☧","☨","☩","☪","☫","☬","☮","☯","☸","⚳","⚴","⚵","⚶","⚷","⚸","⚹","⚺","⚻","⚼","⚿","⌖","⌘","⌬","⌗","⌑","⌁","⌇","⌔","⌂","⌭"],
+      runes: ["ᚠ","ᚢ","ᚦ","ᚨ","ᚱ","ᚲ","ᚷ","ᚹ","ᚺ","ᚾ","ᛁ","ᛃ","ᛇ","ᛈ","ᛉ","ᛊ","ᛏ","ᛒ","ᛖ","ᛗ","ᛚ","ᛜ","ᛞ","ᛟ","⟐","⟑","⟒","⟓","⟔","⟕","⟖","⟗","⟡","⟢","⟣","⟤","⟥","⟦","⟧","⟨","◇","◆","◈","◉","◎","◌","◍","◐","◑","◒","◓","◔","◕","◖","◗","◘","◙","◚","◛","◜","◝","◞"],
+      ciphers: ["✢","✣","✤","✥","✦","✧","✩","✪","✫","✬","✭","✮","✯","✰","✲","✳","✴","✶","✷","✸","✹","✺","✻","✼","✽","✾","❂","❈","❉","❊","❋","✜","✛","✚","✙","✠","⛤","⛥","⛦","⛧","⛨","⛩","⛭","✁","✂","✃","✄","☎","☏","☙","☞","☛","☚","☜","☝","☟","✍","✎","✐","✑","✒","✓","✔"],
+      relics: ["⚑","⚐","⚔","⚒","⚓","⚖","⚗","⚘","⚙","⚜","⚞","⚟","⚠","⚡","⚰","⚱","☠","☡","☢","☣","☤","☨","☫","☬","♘","♙","♚","♛","♜","♝","♞","♟","♠","♣","♥","♦","♤","♧","♡","♢","⛀","⛁","⛂","⛃","⛄","⛆","⛇","⛈","⛉","⛊","⛋","⛌","⛍","⛏","⛓","⛬","⛯","⛶"]
+    }
+
+    const themeOrder = ["occult", "runes", "ciphers"]
+
+    let currentRound = 0
+    let currentOddId = ""
+    let acceptingClicks = false
+    let startTime = 0
+    let penaltyMs = 0
+    let timerId = null
+    let wrongClicks = 0
+    let totalClicks = 0
+    let oddButton = null
+
+    function shuffle(array) {
+      const copy = [...array]
+      for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1))
+        ;[copy[i], copy[j]] = [copy[j], copy[i]]
+      }
+      return copy
+    }
+
+    function showScreen(screen) {
+      ;[startScreen, countdownScreen, gameScreen, endScreen].forEach(s => s.classList.remove("active"))
+      screen.classList.add("active")
+    }
+
+    function formatTime(ms) {
+      const total = Math.max(0, ms)
+      const minutes = Math.floor(total / 60000)
+      const seconds = Math.floor((total % 60000) / 1000)
+      const tenths = Math.floor((total % 1000) / 100)
+      return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}.${tenths}`
+    }
+
+    function updateTimer() {
+      timerEl.textContent = formatTime(Date.now() - startTime + penaltyMs)
+    }
+
+    function startTimer() {
+      startTime = Date.now()
+      penaltyMs = 0
+      wrongClicks = 0
+      totalClicks = 0
+      updateTimer()
+      timerId = setInterval(updateTimer, 65)
+    }
+
+    function stopTimer() {
+      clearInterval(timerId)
+      timerId = null
+      updateTimer()
+    }
+
+    function getGridSize(roundIndex) {
+      if (roundIndex < 5) return 5
+      if (roundIndex < 10) return 7
+      return 9
+    }
+
+    function getThemeName(roundIndex) {
+      return themeOrder[Math.floor(roundIndex / 5) % themeOrder.length]
+    }
+
+    function startCountdown() {
+      currentRound = 0
+      showScreen(countdownScreen)
+
+      let n = 3
+      countNumber.textContent = n
+      countNumber.style.animation = "none"
+      void countNumber.offsetWidth
+      countNumber.style.animation = ""
+
+      const cd = setInterval(() => {
+        n--
+        if (n > 0) {
+          countNumber.textContent = n
+          countNumber.style.animation = "none"
+          void countNumber.offsetWidth
+          countNumber.style.animation = ""
+        } else {
+          clearInterval(cd)
+          beginGame()
+        }
+      }, 900)
+    }
+
+    function beginGame() {
+      showScreen(gameScreen)
+      startTimer()
+      loadRound()
+    }
+
+    function buildCells(size, themeName) {
+      const total = size * size
+      const pairCount = (total - 1) / 2
+      const pool = themePools[themeName]
+      const seed = currentRound * 11 + size
+      const rotated = pool.slice(seed % pool.length).concat(pool.slice(0, seed % pool.length))
+      const uniqueGlyphs = rotated.slice(0, pairCount + 1)
+      const cells = []
+
+      for (let i = 0; i < pairCount; i++) {
+        const glyph = uniqueGlyphs[i]
+        const id = `${themeName}-${seed}-${i}`
+        cells.push({ id, glyph })
+        cells.push({ id, glyph })
+      }
+
+      currentOddId = `${themeName}-odd-${seed}`
+      const targetCell = { id: currentOddId, glyph: uniqueGlyphs[pairCount] }
+      cells.push(targetCell)
+
+      let arranged = shuffle(cells)
+      for (let attempt = 0; attempt < 900; attempt++) {
+        arranged = shuffle(cells)
+        if (!hasAdjacentPairs(arranged, size)) break
+      }
+      return { arranged, targetCell }
+    }
+
+    function areAdjacent(i, j, size) {
+      const r1 = Math.floor(i / size)
+      const c1 = i % size
+      const r2 = Math.floor(j / size)
+      const c2 = j % size
+      return Math.abs(r1 - r2) + Math.abs(c1 - c2) === 1
+    }
+
+    function hasAdjacentPairs(cells, size) {
+      const positions = new Map()
+      cells.forEach((cell, index) => {
+        if (!positions.has(cell.id)) positions.set(cell.id, [])
+        positions.get(cell.id).push(index)
+      })
+
+      for (const [id, list] of positions.entries()) {
+        if (id === currentOddId) continue
+        if (list.length === 2 && areAdjacent(list[0], list[1], size)) return true
+      }
+      return false
+    }
+
+    function createGlyphElement(glyph) {
+      const span = document.createElement("span")
+      span.className = "glyph"
+      span.textContent = glyph
+      span.setAttribute("aria-hidden", "true")
+      return span
+    }
+
+    function loadRound() {
+      acceptingClicks = false
+      symbolGrid.innerHTML = ""
+      message.textContent = ""
+
+      const size = getGridSize(currentRound)
+      const themeName = getThemeName(currentRound)
+      const roundData = buildCells(size, themeName)
+      const cells = roundData.arranged
+
+      symbolGrid.style.setProperty("--grid-size", size)
+      symbolGrid.style.setProperty("--grid-gap", size >= 11 ? "4px" : size >= 9 ? "5px" : "7px")
+      symbolGrid.style.setProperty("--grid-gap-mobile", size >= 11 ? "2px" : size >= 9 ? "3px" : "4px")
+
+      roundCounter.textContent = `${currentRound + 1}/${TOTAL_ROUNDS}`
+      ruleText.textContent = "Click the icon that has no matching pair."
+
+      oddButton = null
+
+      cells.forEach(cell => {
+        const btn = document.createElement("button")
+        btn.className = "symbol-button"
+        btn.type = "button"
+        btn.setAttribute("aria-label", "Symbol")
+        btn.appendChild(createGlyphElement(cell.glyph))
+        if (cell === roundData.targetCell) oddButton = btn
+        btn.addEventListener("click", () => handleCellClick(btn))
+        symbolGrid.appendChild(btn)
+      })
+
+      setTimeout(() => {
+        acceptingClicks = true
+      }, 120)
+    }
+
+    function handleCellClick(btn) {
+      if (!acceptingClicks || btn.classList.contains("correct")) return
+      totalClicks++
+
+      if (btn === oddButton) {
+        acceptingClicks = false
+        message.textContent = "Found it."
+        btn.classList.add("correct")
+        sparkleAt(btn)
+
+        setTimeout(() => {
+          currentRound++
+          if (currentRound >= TOTAL_ROUNDS) finishGame()
+          else loadRound()
+        }, 500)
+      } else {
+        wrongClicks++
+        penaltyMs += 10000
+        updateTimer()
+        showPenalty()
+        message.textContent = "That symbol has a pair."
+        btn.classList.remove("wrong")
+        void btn.offsetWidth
+        btn.classList.add("wrong")
+        setTimeout(() => btn.classList.remove("wrong"), 370)
+      }
+    }
+
+    function showPenalty() {
+      penaltyPop.classList.remove("show")
+      void penaltyPop.offsetWidth
+      penaltyPop.classList.add("show")
+    }
+
+    function sparkleAt(el) {
+      const rect = el.getBoundingClientRect()
+      const count = window.matchMedia("(max-width: 720px)").matches ? 5 : 8
+      for (let i = 0; i < count; i++) {
+        const bit = document.createElement("div")
+        bit.className = "confetti"
+        bit.style.left = `${rect.left + rect.width / 2 + Math.random() * 56 - 28}px`
+        bit.style.top = `${rect.top + rect.height / 2 + Math.random() * 20 - 10}px`
+        bit.style.setProperty("--c", confettiPalette[Math.floor(Math.random() * confettiPalette.length)])
+        bit.style.setProperty("--d", `${0.7 + Math.random() * 0.5}s`)
+        bit.style.width = `${4 + Math.random() * 4}px`
+        bit.style.height = `${10 + Math.random() * 8}px`
+        document.body.appendChild(bit)
+        setTimeout(() => bit.remove(), 1300)
+      }
+    }
+
+    function finishGame() {
+      stopTimer()
+      const elapsed = Date.now() - startTime + penaltyMs
+      finalTime.textContent = formatTime(elapsed)
+      statsLine.textContent = `You found all ${TOTAL_ROUNDS} odd icons with ${wrongClicks} wrong click${wrongClicks === 1 ? "" : "s"}. Penalty time added: ${formatTime(penaltyMs)}.`
+      showScreen(endScreen)
+      burstConfetti()
+    }
+
+    function burstConfetti() {
+      const pieces = window.matchMedia("(max-width: 720px)").matches ? 40 : 68
+      for (let i = 0; i < pieces; i++) {
+        setTimeout(() => {
+          const bit = document.createElement("div")
+          bit.className = "confetti"
+          bit.style.left = `${Math.random() * 100}vw`
+          bit.style.setProperty("--c", confettiPalette[Math.floor(Math.random() * confettiPalette.length)])
+          bit.style.setProperty("--d", `${1.9 + Math.random() * 1.6}s`)
+          bit.style.transform = `rotate(${Math.random() * 180}deg)`
+          document.body.appendChild(bit)
+          setTimeout(() => bit.remove(), 4100)
+        }, i * 18)
+      }
+    }
+
+    function resetGame() {
+      currentRound = 0
+      penaltyMs = 0
+      wrongClicks = 0
+      totalClicks = 0
+      timerEl.textContent = "00:00.0"
+      roundCounter.textContent = `1/${TOTAL_ROUNDS}`
+      symbolGrid.innerHTML = ""
+      oddButton = null
+      showScreen(startScreen)
+    }
+
+    startBtn.addEventListener("click", startCountdown)
+    againBtn.addEventListener("click", resetGame)
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden && timerId) {
+        clearInterval(timerId)
+        timerId = null
+      }
+      if (!document.hidden && gameScreen.classList.contains("active") && !timerId) {
+        timerId = setInterval(updateTimer, 65)
+      }
+    })
+  </script>
+</body>
+</html>
