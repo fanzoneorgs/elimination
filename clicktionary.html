@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Click-Tionary</title>
+<style>
+:root{
+  --bg:#080808;
+  --panel:#111111;
+  --ink:#f1eee7;
+  --muted:#8e8b84;
+  --line:#2a2926;
+  --accent:#8f1018;
+  --good:#d8d5ce;
+  --bad:#c51f2b;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:var(--bg);color:var(--ink)}
+body{
+  min-height:100vh;
+  min-height:100dvh;
+  overflow:hidden;
+  font-family:Inter,Arial,Helvetica,sans-serif;
+  background:
+    radial-gradient(circle at 20% 0%,rgba(255,255,255,.045),transparent 28%),
+    radial-gradient(circle at 80% 100%,rgba(255,255,255,.025),transparent 30%),
+    #080808;
+}
+body:after{
+  content:"";
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  opacity:.08;
+  background-image:
+    repeating-linear-gradient(0deg,transparent 0,transparent 2px,rgba(255,255,255,.08) 3px);
+  mix-blend-mode:soft-light;
+}
+button{font:inherit}
+[hidden]{display:none!important}
+.app{
+  min-height:100vh;
+  min-height:100dvh;
+  display:grid;
+  grid-template-rows:auto 1fr;
+  gap:14px;
+  padding:max(14px,env(safe-area-inset-top)) max(14px,env(safe-area-inset-right)) max(14px,env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left));
+}
+.topbar{
+  min-height:68px;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:16px;
+  align-items:center;
+  border:1px solid var(--line);
+  background:rgba(12,12,12,.92);
+  padding:12px 14px;
+  box-shadow:0 16px 40px rgba(0,0,0,.26);
+}
+.brandline{
+  min-width:0;
+  display:flex;
+  align-items:center;
+  gap:14px;
+}
+.round{
+  flex:0 0 auto;
+  color:var(--muted);
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:.18em;
+}
+.rule{
+  min-width:0;
+  font-family:Georgia,"Times New Roman",serif;
+  font-size:clamp(16px,2vw,22px);
+  line-height:1.15;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.timer-wrap{
+  width:172px;
+  height:42px;
+  border-left:1px solid var(--line);
+  padding-left:14px;
+  display:flex;
+  justify-content:flex-end;
+  align-items:center;
+}
+#timer{
+  width:156px;
+  height:34px;
+  display:block;
+}
+.stage{
+  position:relative;
+  min-height:0;
+  overflow:hidden;
+  border:1px solid var(--line);
+  background:
+    linear-gradient(135deg,rgba(255,255,255,.018),transparent 34%),
+    radial-gradient(circle at 50% 50%,rgba(255,255,255,.018),transparent 46%),
+    #0d0d0d;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.012),0 24px 70px rgba(0,0,0,.34);
+  touch-action:manipulation;
+  user-select:none;
+  -webkit-user-select:none;
+}
+.stage:before{
+  content:"";
+  position:absolute;
+  inset:14px;
+  border:1px solid rgba(255,255,255,.025);
+  pointer-events:none;
+}
+.center-screen{
+  position:absolute;
+  inset:0;
+  display:grid;
+  place-items:center;
+  padding:28px;
+}
+.center-card{
+  width:min(460px,92%);
+  text-align:center;
+}
+.logo{
+  margin:0 0 28px;
+  font-family:Georgia,"Times New Roman",serif;
+  font-weight:700;
+  font-size:clamp(38px,8vw,72px);
+  letter-spacing:-.045em;
+  text-transform:uppercase;
+}
+.logo span{color:var(--accent)}
+.start-btn,.restart-btn{
+  appearance:none;
+  border:1px solid #5b5953;
+  background:#efede7;
+  color:#090909;
+  min-width:160px;
+  min-height:50px;
+  padding:0 26px;
+  font-weight:900;
+  letter-spacing:.16em;
+  cursor:pointer;
+  transition:transform .12s ease,background .12s ease;
+}
+.start-btn:active,.restart-btn:active{transform:translateY(1px) scale(.99)}
+.playfield{
+  position:absolute;
+  inset:0;
+}
+.target{
+  position:absolute;
+  transform:translate(-50%,-50%);
+  display:grid;
+  place-items:center;
+  min-width:48px;
+  min-height:48px;
+  padding:8px 12px;
+  border:1px solid rgba(241,238,231,.34);
+  background:#151515;
+  color:var(--ink);
+  box-shadow:0 10px 24px rgba(0,0,0,.28);
+  font-weight:800;
+  font-size:clamp(14px,1.65vw,20px);
+  line-height:1;
+  cursor:pointer;
+  border-radius:2px;
+  transition:opacity .14s ease,transform .14s ease,border-color .14s ease,background .14s ease;
+  touch-action:manipulation;
+}
+.target:hover{border-color:rgba(241,238,231,.7)}
+.target:active{transform:translate(-50%,-50%) scale(.96)}
+.target.correct{
+  opacity:0;
+  pointer-events:none;
+  transform:translate(-50%,-50%) scale(.82);
+}
+.target.wrong{
+  border-color:var(--bad);
+  background:#2b0d10;
+  animation:wrongFlash .22s ease 2;
+}
+@keyframes wrongFlash{
+  0%,100%{transform:translate(-50%,-50%)}
+  50%{transform:translate(calc(-50% - 4px),-50%)}
+}
+.color-target{
+  padding:0;
+  min-width:54px;
+  min-height:54px;
+  width:58px;
+  height:58px;
+  border-radius:50%;
+}
+.shape-target{
+  padding:0;
+  min-width:58px;
+  min-height:58px;
+  border:0;
+  background:transparent;
+  box-shadow:none;
+}
+.shape-visual{
+  width:58px;
+  height:58px;
+  background:#e8e5de;
+  filter:drop-shadow(0 8px 12px rgba(0,0,0,.35));
+}
+.object-target{
+  padding:0;
+  min-width:42px;
+  min-height:42px;
+  border:0;
+  background:transparent;
+  box-shadow:none;
+}
+.object-visual{
+  border:2px solid #e8e5de;
+  background:rgba(232,229,222,.08);
+  transform:rotate(45deg);
+}
+.dots{
+  display:flex;
+  flex-wrap:wrap;
+  gap:3px;
+  width:34px;
+  justify-content:center;
+}
+.dot{
+  width:7px;
+  height:7px;
+  border-radius:50%;
+  background:currentColor;
+}
+.penalty{
+  position:absolute;
+  right:16px;
+  top:14px;
+  color:#e9c3c5;
+  font-weight:900;
+  font-size:13px;
+  letter-spacing:.08em;
+  opacity:0;
+  transform:translateY(-4px);
+  pointer-events:none;
+}
+.penalty.show{animation:penaltyPop .8s ease}
+@keyframes penaltyPop{
+  0%{opacity:0;transform:translateY(-6px)}
+  16%{opacity:1;transform:translateY(0)}
+  70%{opacity:1}
+  100%{opacity:0;transform:translateY(5px)}
+}
+.finish-time{
+  font-family:Georgia,"Times New Roman",serif;
+  font-size:clamp(44px,10vw,82px);
+  font-weight:700;
+  letter-spacing:-.04em;
+  margin-bottom:24px;
+}
+@media (max-width:700px){
+  .app{gap:10px;padding:10px}
+  .topbar{
+    min-height:82px;
+    grid-template-columns:1fr auto;
+    gap:10px;
+    padding:10px;
+  }
+  .brandline{
+    display:block;
+  }
+  .round{
+    margin-bottom:5px;
+    font-size:10px;
+  }
+  .rule{
+    white-space:normal;
+    display:-webkit-box;
+    -webkit-line-clamp:2;
+    -webkit-box-orient:vertical;
+    font-size:15px;
+    max-height:36px;
+  }
+  .timer-wrap{
+    width:118px;
+    padding-left:8px;
+  }
+  #timer{
+    width:110px;
+    height:32px;
+  }
+  .target{
+    min-width:44px;
+    min-height:44px;
+    padding:7px 9px;
+    font-size:14px;
+  }
+  .color-target{
+    width:48px;
+    height:48px;
+    min-width:48px;
+    min-height:48px;
+  }
+  .shape-visual{
+    width:50px;
+    height:50px;
+  }
+  .logo{margin-bottom:22px}
+}
+@media (max-height:620px){
+  .topbar{min-height:58px}
+  .app{gap:8px;padding:8px}
+  .target{min-width:40px;min-height:40px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brandline">
+      <div class="round" id="roundLabel">CLICK-TIONARY</div>
+      <div class="rule" id="ruleLabel"></div>
+    </div>
+    <div class="timer-wrap">
+      <canvas id="timer" width="312" height="68" aria-label="Elapsed time"></canvas>
+    </div>
+  </header>
+  <main class="stage" id="stage">
+    <div class="center-screen" id="startScreen">
+      <div class="center-card">
+        <h1 class="logo">CLICK<span>-</span>TIONARY</h1>
+        <button class="start-btn" id="startButton">START</button>
+      </div>
+    </div>
+    <div class="playfield" id="playfield" hidden></div>
+    <div class="penalty" id="penalty">+10.00</div>
+  </main>
+</div>
+<script>
+(()=>{
+  "use strict";
+
+  const $=s=>document.querySelector(s);
+  const stage=$("#stage");
+  const playfield=$("#playfield");
+  const startScreen=$("#startScreen");
+  const startButton=$("#startButton");
+  const roundLabel=$("#roundLabel");
+  const ruleLabel=$("#ruleLabel");
+  const timer=$("#timer");
+  const penaltyEl=$("#penalty");
+  const ctx=timer.getContext("2d");
+
+  const months=["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+  const vowels=new Set(["A","E","I","O","U"]);
+  const continentArea={Australia:8.6,Europe:10.2,Antarctica:14,South_America:17.8,North_America:24.7,Africa:30.4,Asia:44.6};
+
+  const shuffle=a=>{
+    const b=[...a];
+    for(let i=b.length-1;i>0;i--){
+      const j=Math.floor(Math.random()*(i+1));
+      [b[i],b[j]]=[b[j],b[i]];
+    }
+    return b;
+  };
+
+  const item=(label,value,extra={})=>({id:crypto.randomUUID(),label,value,...extra});
+
+  const rounds=[
+    {
+      rule:"Click months in their order from January to December.",
+      build:()=>({items:months.map((m,i)=>item(m,i)),order:months.map((m,i)=>i)})
+    },
+    {
+      rule:"Click shapes from least sides to most sides in it.",
+      build:()=>{
+        const data=[
+          ["Triangle",3,"polygon(50% 0,100% 100%,0 100%)"],
+          ["Square",4,"polygon(0 0,100% 0,100% 100%,0 100%)"],
+          ["Pentagon",5,"polygon(50% 0,100% 38%,82% 100%,18% 100%,0 38%)"],
+          ["Hexagon",6,"polygon(25% 0,75% 0,100% 50%,75% 100%,25% 100%,0 50%)"],
+          ["Heptagon",7,"polygon(50% 0,89% 19%,100% 61%,72% 100%,28% 100%,0 61%,11% 19%)"],
+          ["Octagon",8,"polygon(30% 0,70% 0,100% 30%,100% 70%,70% 100%,30% 100%,0 70%,0 30%)"]
+        ];
+        return {items:data.map(d=>item(d[0],d[1],{kind:"shape",clip:d[2]})),order:data.map(d=>d[1])};
+      }
+    },
+    {
+      rule:"Click letters in an alphabetical order, from A to Z.",
+      build:()=>({items:alphabet.map((x,i)=>item(x,i)),order:alphabet.map((x,i)=>i)})
+    },
+    {
+      rule:"Click letters in a descending alphabetical order, from Z to A.",
+      build:()=>({items:alphabet.map((x,i)=>item(x,i)),order:[...alphabet].reverse().map(x=>alphabet.indexOf(x))})
+    },
+    {
+      rule:"First click all vowels in an alphabetical order. Then, click all consonants in an alphabetical order.",
+      build:()=>{
+        const seq=[...alphabet.filter(x=>vowels.has(x)),...alphabet.filter(x=>!vowels.has(x))];
+        return {items:alphabet.map((x,i)=>item(x,i)),order:seq.map(x=>alphabet.indexOf(x))};
+      }
+    },
+    {
+      rule:"Click odd numbers from smallest to biggest, then even numbers from smallest to biggest.",
+      build:()=>{
+        const nums=Array.from({length:20},(_,i)=>i+1);
+        const seq=[...nums.filter(n=>n%2),...nums.filter(n=>n%2===0)];
+        return {items:nums.map(n=>item(String(n),n)),order:seq};
+      }
+    },
+    {
+      rule:"Click numbers by digit sum from lowest to highest. (for example: 34 = # + 4 = 7)",
+      build:()=>{
+        const nums=[10,20,12,31,41,24,52,44,63,73,65,84];
+        const sum=n=>String(n).split("").reduce((a,b)=>a+Number(b),0);
+        const seq=[...nums].sort((a,b)=>sum(a)-sum(b));
+        return {items:nums.map(n=>item(String(n),n)),order:seq};
+      }
+    },
+    {
+      rule:"Click words from longest to shortest",
+      build:()=>{
+        const words=["investigation","evidence","suspect","cipher","clue","ink"];
+        const seq=[...words].sort((a,b)=>b.length-a.length);
+        return {items:words.map(w=>item(w,w)),order:seq};
+      }
+    },
+    {
+      rule:"Click words by last letter alphabetically",
+      build:()=>{
+        const words=["camera","badge","brief","watch","silk","room","train","copy"];
+        const seq=[...words].sort((a,b)=>a.at(-1).localeCompare(b.at(-1)));
+        return {items:words.map(w=>item(w,w)),order:seq};
+      }
+    },
+    {
+      rule:"Click colors in reverse rainbow order",
+      build:()=>{
+        const data=[
+          ["Red","#cf2c2c",1],
+          ["Orange","#d66a22",2],
+          ["Yellow","#d3b72a",3],
+          ["Green","#2f8d56",4],
+          ["Blue","#336bb8",5],
+          ["Indigo","#3f3c78",6],
+          ["Violet","#75509a",7]
+        ];
+        return {items:data.map(d=>item(d[0],d[2],{kind:"color",color:d[1]})),order:[7,6,5,4,3,2,1]};
+      }
+    },
+    {
+      rule:"Click displayed times from earliest to latest",
+      build:()=>{
+        const data=[
+          ["06:15",375],["07:40",460],["09:05",545],["10:30",630],["12:10",730],
+          ["13:45",825],["15:20",920],["17:55",1075],["19:10",1150],["22:35",1355]
+        ];
+        return {items:data.map(d=>item(d[0],d[1])),order:data.map(d=>d[1])};
+      }
+    },
+    {
+      rule:"Click objects from largest to smallest",
+      build:()=>{
+        const sizes=[88,78,68,58,50,44,38];
+        return {items:sizes.map(s=>item("",s,{kind:"object",size:s})),order:[...sizes]};
+      }
+    },
+    {
+      rule:"Click continents by approximate area, smallest to largest",
+      build:()=>{
+        const names=Object.keys(continentArea).map(x=>x.replace("_"," "));
+        const seq=[...names].sort((a,b)=>continentArea[a.replace(" ","_")]-continentArea[b.replace(" ","_")]);
+        return {items:names.map(n=>item(n,n)),order:seq};
+      }
+    },
+    {
+      rule:"Click numbers in ascending order of their reversed digits (for example, 21 → 12, etc.)",
+      build:()=>{
+        const nums=[21,70,43,15,82,36,94,58,67,79,89,99];
+        const rev=n=>Number(String(n).split("").reverse().join(""));
+        const seq=[...nums].sort((a,b)=>rev(a)-rev(b));
+        return {items:nums.map(n=>item(String(n),n)),order:seq};
+      }
+    },
+    {
+      rule:"Click objects based on the number represented.",
+      build:()=>{
+        const data=[
+          ["ONE",1,"text"],["II",2,"text"],["THREE",3,"text"],["IV",4,"text"],["5",5,"text"],
+          ["",6,"dots"],["VII",7,"text"],["EIGHT",8,"text"],["9",9,"text"],["X",10,"text"]
+        ];
+        return {items:data.map(d=>item(d[0],d[1],{kind:d[2]})),order:data.map(d=>d[1])};
+      }
+    },
+    {
+      rule:"Click words with 1 syllable first, then 2, then 3...",
+      build:()=>{
+        const data=[["clue",1],["shadow",2],["evidence",3],["information",4],["investigation",5]];
+        return {items:data.map(d=>item(d[0],d[1])),order:data.map(d=>d[1])};
+      }
+    },
+    {
+      rule:"Click all consonants in an alphabetical order, then all vowels in an alphabetical order.",
+      build:()=>{
+        const letters=shuffle(["A","B","D","E","F","H","I","K","M","O","R","S","T","U","V","Y"]);
+        const consonantIds=letters.filter(x=>!vowels.has(x));
+        const vowelIds=letters.filter(x=>vowels.has(x));
+        return {
+          items:letters.map(x=>item(x,x)),
+          groups:[new Set(consonantIds),new Set(vowelIds)]
+        };
+      }
+    },
+    {
+      rule:"Click words in reverse alphabetical order by their starting letter.",
+      build:()=>{
+        const words=["alibi","badge","cipher","detective","evidence","footprint","glove","motive","suspect","witness"];
+        const seq=[...words].sort((a,b)=>b.localeCompare(a));
+        return {items:words.map(w=>item(w,w)),order:seq};
+      }
+    },
+    {
+      rule:"Click words from shortest to longest.",
+      build:()=>{
+        const words=["key","clue","print","camera","suspect","evidence","investigation"];
+        const seq=[...words].sort((a,b)=>a.length-b.length);
+        return {items:words.map(w=>item(w,w)),order:seq};
+      }
+    },
+    {
+      rule:"Click numbers closest to 50 to furthest from 50 (for example, number 27 23 away from 50).",
+      build:()=>{
+        const nums=[49,53,44,58,39,63,34,69,28,76,19,83];
+        const seq=[...nums].sort((a,b)=>Math.abs(a-50)-Math.abs(b-50));
+        return {items:nums.map(n=>item(String(n),n)),order:seq};
+      }
+    }
+  ];
+
+  let roundIndex=-1;
+  let startedAt=0;
+  let penaltyMs=0;
+  let gameRunning=false;
+  let animationFrame=0;
+  let currentState=null;
+  let penaltyPulse=0;
+
+  const elapsed=()=>gameRunning?performance.now()-startedAt+penaltyMs:0;
+
+  const formatTime=ms=>{
+    const total=Math.max(0,ms);
+    const minutes=Math.floor(total/60000);
+    const seconds=Math.floor((total%60000)/1000);
+    const hundredths=Math.floor((total%1000)/10);
+    return `${String(minutes).padStart(2,"0")}:${String(seconds).padStart(2,"0")}.${String(hundredths).padStart(2,"0")}`;
+  };
+
+  const drawTimer=()=>{
+    const w=timer.width;
+    const h=timer.height;
+    ctx.clearRect(0,0,w,h);
+    ctx.fillStyle="#0d0d0d";
+    ctx.fillRect(0,0,w,h);
+    for(let i=0;i<18;i++){
+      const x=(Math.random()*w)|0;
+      const y=(Math.random()*h)|0;
+      const a=Math.random()*.06;
+      ctx.fillStyle=`rgba(255,255,255,${a})`;
+      ctx.fillRect(x,y,1+Math.random()*2,1);
+    }
+    ctx.fillStyle="#f1eee7";
+    ctx.textAlign="right";
+    ctx.textBaseline="middle";
+    ctx.font="700 34px Arial";
+    ctx.fillText(formatTime(elapsed()),w-10,h/2+1);
+    if(penaltyPulse>0){
+      ctx.fillStyle=`rgba(197,31,43,${Math.min(1,penaltyPulse)})`;
+      ctx.fillRect(0,h-4,w,4);
+      penaltyPulse=Math.max(0,penaltyPulse-.035);
+    }
+    if(gameRunning) animationFrame=requestAnimationFrame(drawTimer);
+  };
+
+  const showPenalty=()=>{
+    penaltyPulse=1;
+    penaltyEl.classList.remove("show");
+    void penaltyEl.offsetWidth;
+    penaltyEl.classList.add("show");
+  };
+
+  const safeRect=()=>{
+    const r=playfield.getBoundingClientRect();
+    return {w:r.width,h:r.height};
+  };
+
+  const placeTargets=elements=>{
+    const {w,h}=safeRect();
+    const edge=w<600?10:18;
+    const shuffled=shuffle(elements).sort((a,b)=>(b.offsetWidth*b.offsetHeight)-(a.offsetWidth*a.offsetHeight));
+    const placed=[];
+
+    const overlaps=(rect,gap)=>placed.some(other=>!(
+      rect.right+gap<=other.left ||
+      rect.left>=other.right+gap ||
+      rect.bottom+gap<=other.top ||
+      rect.top>=other.bottom+gap
+    ));
+
+    const tryPlace=(el,gap,attempts)=>{
+      const ew=Math.max(1,el.offsetWidth);
+      const eh=Math.max(1,el.offsetHeight);
+      const minX=edge+ew/2;
+      const maxX=Math.max(minX,w-edge-ew/2);
+      const minY=edge+eh/2;
+      const maxY=Math.max(minY,h-edge-eh/2);
+
+      for(let attempt=0;attempt<attempts;attempt++){
+        const x=minX+Math.random()*Math.max(0,maxX-minX);
+        const y=minY+Math.random()*Math.max(0,maxY-minY);
+        const rect={
+          left:x-ew/2,
+          right:x+ew/2,
+          top:y-eh/2,
+          bottom:y+eh/2
+        };
+        if(!overlaps(rect,gap)) return {x,y,rect};
+      }
+      return null;
+    };
+
+    for(const el of shuffled){
+      let spot=tryPlace(el,w<600?8:12,500);
+      if(!spot) spot=tryPlace(el,w<600?4:7,700);
+      if(!spot) spot=tryPlace(el,1,900);
+
+      if(!spot){
+        const ew=Math.max(1,el.offsetWidth);
+        const eh=Math.max(1,el.offsetHeight);
+        const stepX=Math.max(ew+2,44);
+        const stepY=Math.max(eh+2,44);
+        let found=null;
+
+        for(let y=edge+eh/2;y<=h-edge-eh/2&&!found;y+=stepY){
+          for(let x=edge+ew/2;x<=w-edge-ew/2;x+=stepX){
+            const rect={
+              left:x-ew/2,
+              right:x+ew/2,
+              top:y-eh/2,
+              bottom:y+eh/2
+            };
+            if(!overlaps(rect,0)){
+              found={x,y,rect};
+              break;
+            }
+          }
+        }
+        spot=found;
+      }
+
+      if(spot){
+        placed.push(spot.rect);
+        el.style.left=`${spot.x}px`;
+        el.style.top=`${spot.y}px`;
+      }
+    }
+  };
+
+  const makeTarget=data=>{
+    const el=document.createElement("button");
+    el.type="button";
+    el.className="target";
+    el.dataset.id=data.id;
+
+    if(data.kind==="color"){
+      el.classList.add("color-target");
+      el.style.background=data.color;
+      el.setAttribute("aria-label",data.label);
+    }else if(data.kind==="shape"){
+      el.classList.add("shape-target");
+      const v=document.createElement("span");
+      v.className="shape-visual";
+      v.style.clipPath=data.clip;
+      el.append(v);
+      el.setAttribute("aria-label",data.label);
+    }else if(data.kind==="object"){
+      el.classList.add("object-target");
+      const v=document.createElement("span");
+      v.className="object-visual";
+      v.style.width=`${data.size}px`;
+      v.style.height=`${data.size}px`;
+      el.append(v);
+      el.setAttribute("aria-label",`${data.size}`);
+    }else if(data.kind==="dots"){
+      const dots=document.createElement("span");
+      dots.className="dots";
+      for(let i=0;i<data.value;i++){
+        const d=document.createElement("span");
+        d.className="dot";
+        dots.append(d);
+      }
+      el.append(dots);
+      el.setAttribute("aria-label",`${data.value} dots`);
+    }else{
+      el.textContent=data.label;
+    }
+
+    el.addEventListener("pointerdown",ev=>{
+      ev.preventDefault();
+      handleTarget(data,el);
+    },{passive:false});
+
+    return el;
+  };
+
+  const handleTarget=(data,el)=>{
+    if(!gameRunning||!currentState||el.classList.contains("correct")) return;
+
+    let correct=false;
+
+    if(currentState.groups){
+      while(currentState.groupIndex<currentState.groups.length&&currentState.groups[currentState.groupIndex].size===0){
+        currentState.groupIndex++;
+      }
+      const group=currentState.groups[currentState.groupIndex];
+      correct=Boolean(group&&group.has(data.value));
+      if(correct) group.delete(data.value);
+    }else{
+      const expected=currentState.order[currentState.step];
+      correct=data.value===expected;
+      if(correct) currentState.step++;
+    }
+
+    if(correct){
+      el.classList.add("correct");
+      currentState.remaining--;
+      if(currentState.remaining===0){
+        setTimeout(()=>{
+          if(roundIndex===rounds.length-1) finishGame();
+          else loadRound(roundIndex+1);
+        },170);
+      }
+    }else{
+      penaltyMs+=10000;
+      showPenalty();
+      el.classList.remove("wrong");
+      void el.offsetWidth;
+      el.classList.add("wrong");
+      setTimeout(()=>el.classList.remove("wrong"),480);
+    }
+  };
+
+  const loadRound=index=>{
+    roundIndex=index;
+    playfield.innerHTML="";
+    const round=rounds[index];
+    const built=round.build();
+    currentState={
+      order:built.order||null,
+      step:0,
+      groups:built.groups?built.groups.map(g=>new Set(g)):null,
+      groupIndex:0,
+      remaining:built.items.length
+    };
+    roundLabel.textContent=`${String(index+1).padStart(2,"0")} / ${rounds.length}`;
+    ruleLabel.textContent=round.rule;
+    const elements=shuffle(built.items).map(data=>{
+      const el=makeTarget(data);
+      playfield.append(el);
+      return el;
+    });
+    requestAnimationFrame(()=>placeTargets(elements));
+  };
+
+  const startGame=()=>{
+    cancelAnimationFrame(animationFrame);
+    penaltyMs=0;
+    roundIndex=-1;
+    startedAt=performance.now();
+    gameRunning=true;
+    startScreen.hidden=true;
+    playfield.hidden=false;
+    loadRound(0);
+    drawTimer();
+  };
+
+  const finishGame=()=>{
+    const finalMs=elapsed();
+    gameRunning=false;
+    cancelAnimationFrame(animationFrame);
+    playfield.hidden=true;
+    roundLabel.textContent="COMPLETE";
+    ruleLabel.textContent="";
+    drawTimer();
+    ctx.clearRect(0,0,timer.width,timer.height);
+    ctx.fillStyle="#0d0d0d";
+    ctx.fillRect(0,0,timer.width,timer.height);
+    ctx.fillStyle="#f1eee7";
+    ctx.textAlign="right";
+    ctx.textBaseline="middle";
+    ctx.font="700 34px Arial";
+    ctx.fillText(formatTime(finalMs),timer.width-10,timer.height/2+1);
+
+    startScreen.hidden=false;
+    startScreen.innerHTML="";
+    const card=document.createElement("div");
+    card.className="center-card";
+    const time=document.createElement("div");
+    time.className="finish-time";
+    time.textContent=formatTime(finalMs);
+    const button=document.createElement("button");
+    button.type="button";
+    button.className="restart-btn";
+    button.textContent="RESTART";
+    button.addEventListener("click",startGame,{once:true});
+    card.append(time,button);
+    startScreen.append(card);
+  };
+
+  const redrawLayout=()=>{
+    if(!gameRunning||playfield.hidden) return;
+    const active=[...playfield.querySelectorAll(".target:not(.correct)")];
+    placeTargets(active);
+  };
+
+  let resizeTimer=0;
+  addEventListener("resize",()=>{
+    clearTimeout(resizeTimer);
+    resizeTimer=setTimeout(redrawLayout,120);
+  });
+
+  startButton.addEventListener("click",startGame);
+  drawTimer();
+})();
+</script>
+</body>
+</html>
