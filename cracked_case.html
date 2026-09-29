@@ -188,7 +188,34 @@ button:active{
     padding:14px;
   }
   .key-panel{
+    padding:10px;
+  }
+
+  #keyCanvas,#cipherCanvas{
+    image-rendering:auto;
+  }
+
+  .cipher-panel{
+    overflow:hidden;
+  }
+}
+
+@media(max-width:420px){
+  body{
     padding:12px;
+  }
+
+  .title{
+    margin-bottom:20px;
+    letter-spacing:.10em;
+  }
+
+  .key-panel{
+    padding:8px;
+  }
+
+  .cipher-panel{
+    padding:8px;
   }
 }
 </style>
@@ -324,13 +351,22 @@ button:active{
   };
 
   const drawKey=()=>{
+    const mobile=window.innerWidth<=650;
+    const cols=mobile?3:6;
+    const rows=Math.ceil(keyEntries.length/cols);
+
+    // On mobile, use a much narrower logical canvas and make it taller.
+    // This prevents the desktop-sized 1800px canvas from being scaled down
+    // until all symbols become tiny.
+    keyCanvas.width=mobile?900:1800;
+    keyCanvas.height=mobile?Math.max(760,rows*126+44):430;
+
     const w=keyCanvas.width;
     const h=keyCanvas.height;
     keyCtx.clearRect(0,0,w,h);
-    const cols=6;
-    const rows=Math.ceil(keyEntries.length/cols);
-    const gap=18;
-    const outer=24;
+
+    const gap=mobile?14:18;
+    const outer=mobile?20:24;
     const cellW=(w-outer*2-gap*(cols-1))/cols;
     const cellH=(h-outer*2-gap*(rows-1))/rows;
 
@@ -344,30 +380,72 @@ button:active{
       keyCtx.fillStyle="#141417";
       keyCtx.fillRect(x,y,cellW,cellH);
       keyCtx.strokeStyle="#2f2f34";
-      keyCtx.lineWidth=2;
+      keyCtx.lineWidth=mobile?3:2;
       keyCtx.strokeRect(x+1,y+1,cellW-2,cellH-2);
 
       keyCtx.fillStyle="#f5f5f5";
       keyCtx.textAlign="center";
       keyCtx.textBaseline="middle";
-      keyCtx.font="700 48px 'Arial Unicode MS','Segoe UI Symbol',Arial";
-      keyCtx.fillText(entry.s,x+cellW*.34,y+cellH*.5);
+      keyCtx.font=(mobile?"700 62px ":"700 48px ")+"'Arial Unicode MS','Segoe UI Symbol',Arial";
+      keyCtx.fillText(entry.s,x+cellW*.30,y+cellH*.5);
 
       keyCtx.fillStyle="#66666d";
-      keyCtx.font="700 32px Arial";
-      keyCtx.fillText("=",x+cellW*.55,y+cellH*.5);
+      keyCtx.font=(mobile?"700 40px Arial":"700 32px Arial");
+      keyCtx.fillText("=",x+cellW*.54,y+cellH*.5);
 
       keyCtx.fillStyle="#e9e9ea";
-      keyCtx.font="900 42px Arial";
-      keyCtx.fillText(entry.c,x+cellW*.75,y+cellH*.5);
+      keyCtx.font=(mobile?"900 54px Arial":"900 42px Arial");
+      keyCtx.fillText(entry.c,x+cellW*.77,y+cellH*.5);
     }
   };
 
   const drawCipher=()=>{
+    const mobile=window.innerWidth<=650;
+    const count=symbolSequence.length;
+
+    if(mobile){
+      // Keep mobile symbols large. Longer codes wrap onto a second row
+      // instead of forcing every symbol to shrink to fit one line.
+      const perRow=Math.min(5,count);
+      const rows=Math.ceil(count/perRow);
+      cipherCanvas.width=900;
+      cipherCanvas.height=rows===1?260:470;
+
+      const w=cipherCanvas.width;
+      const h=cipherCanvas.height;
+      cipherCtx.clearRect(0,0,w,h);
+      cipherCtx.textAlign="center";
+      cipherCtx.textBaseline="middle";
+      cipherCtx.fillStyle="#f4f4f4";
+      cipherCtx.font="700 104px 'Arial Unicode MS','Segoe UI Symbol',Arial";
+
+      const rowH=h/rows;
+      for(let i=0;i<count;i++){
+        const row=Math.floor(i/perRow);
+        const startIndex=row*perRow;
+        const itemsInRow=Math.min(perRow,count-startIndex);
+        const spacing=155;
+        const rowStart=w/2-((itemsInRow-1)*spacing)/2;
+        const col=i-startIndex;
+        const x=rowStart+col*spacing;
+        const cy=row*rowH+rowH*.40;
+
+        cipherCtx.fillText(symbolSequence[i],x,cy);
+        cipherCtx.strokeStyle="#3a3a40";
+        cipherCtx.lineWidth=5;
+        cipherCtx.beginPath();
+        cipherCtx.moveTo(x-54,row*rowH+rowH*.76);
+        cipherCtx.lineTo(x+54,row*rowH+rowH*.76);
+        cipherCtx.stroke();
+      }
+      return;
+    }
+
+    cipherCanvas.width=1800;
+    cipherCanvas.height=300;
     const w=cipherCanvas.width;
     const h=cipherCanvas.height;
     cipherCtx.clearRect(0,0,w,h);
-    const count=symbolSequence.length;
     const maxSize=Math.min(130,(w-120)/count);
     const start=w/2-((count-1)*maxSize)/2;
     cipherCtx.textAlign="center";
@@ -523,6 +601,15 @@ button:active{
 
   document.addEventListener("visibilitychange",()=>{
     if(!document.hidden&&gameScreen.classList.contains("active")) paintStatus();
+  });
+
+
+  window.addEventListener("resize",()=>{
+    if(gameScreen.classList.contains("active")){
+      drawKey();
+      drawCipher();
+      paintStatus();
+    }
   });
 
   window.addEventListener("contextmenu",e=>e.preventDefault());
