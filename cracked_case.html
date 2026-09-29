@@ -390,7 +390,7 @@ button:active{
     answerInput.value="";
     answerInput.classList.remove("bad","good");
 
-    const length=4+randInt(4);
+    const length=4+Math.floor((round-1)/5);
     const needed=[];
     let plain="";
     for(let i=0;i<length;i++){
