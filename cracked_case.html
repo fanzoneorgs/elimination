@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRACKED CASE</title>
+<style>
+:root{
+  color-scheme:dark;
+  --bg:#0b0b0c;
+  --panel:#111113;
+  --panel2:#17171a;
+  --line:#2a2a2e;
+  --text:#f1f1f1;
+  --muted:#9a9aa1;
+  --accent:#b71f2d;
+  --accent2:#7b121d;
+}
+*{
+  box-sizing:border-box;
+}
+html,body{
+  margin:0;
+  min-height:100%;
+  background:
+    radial-gradient(circle at 50% -10%,rgba(255,255,255,.055),transparent 34%),
+    linear-gradient(180deg,#0d0d0f 0%,#09090a 100%);
+  color:var(--text);
+  font-family:Arial,Helvetica,sans-serif;
+}
+body{
+  min-height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:28px;
+  overflow-x:hidden;
+}
+body:before{
+  content:"";
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  opacity:.18;
+  background-image:
+    repeating-linear-gradient(0deg,rgba(255,255,255,.025) 0,rgba(255,255,255,.025) 1px,transparent 1px,transparent 3px);
+  mix-blend-mode:screen;
+}
+.shell{
+  width:min(1040px,100%);
+}
+.title{
+  margin:0 0 28px;
+  text-align:center;
+  font-size:clamp(34px,6vw,72px);
+  letter-spacing:.16em;
+  font-weight:900;
+  line-height:.9;
+  color:#f5f5f5;
+  text-shadow:0 0 24px rgba(255,255,255,.06);
+}
+.screen{
+  display:none;
+}
+.screen.active{
+  display:block;
+}
+.start-wrap,.end-wrap{
+  min-height:460px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-direction:column;
+  gap:28px;
+}
+button{
+  appearance:none;
+  border:1px solid #4b4b51;
+  background:#161619;
+  color:#f5f5f5;
+  min-width:170px;
+  height:54px;
+  padding:0 28px;
+  font-size:15px;
+  font-weight:800;
+  letter-spacing:.16em;
+  cursor:pointer;
+  transition:transform .13s ease,background .13s ease,border-color .13s ease;
+}
+button:hover{
+  background:#1d1d21;
+  border-color:#73737b;
+}
+button:active{
+  transform:translateY(1px);
+}
+.topbar{
+  display:flex;
+  justify-content:center;
+  margin-bottom:16px;
+}
+#statusCanvas{
+  width:min(100%,640px);
+  height:auto;
+  display:block;
+}
+.panel{
+  border:1px solid var(--line);
+  background:rgba(16,16,18,.94);
+  box-shadow:0 22px 70px rgba(0,0,0,.34);
+}
+.key-panel{
+  padding:18px;
+}
+#keyCanvas{
+  width:100%;
+  height:auto;
+  display:block;
+}
+.cipher-panel{
+  margin-top:16px;
+  padding:24px;
+  min-height:180px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+#cipherCanvas{
+  width:100%;
+  height:auto;
+  display:block;
+}
+.answer-row{
+  margin-top:16px;
+  display:grid;
+  grid-template-columns:1fr 150px;
+  gap:12px;
+}
+#answer{
+  width:100%;
+  height:54px;
+  border:1px solid #39393f;
+  outline:none;
+  background:#0e0e10;
+  color:#fff;
+  padding:0 18px;
+  text-align:center;
+  font-size:20px;
+  letter-spacing:.18em;
+  font-weight:800;
+  text-transform:uppercase;
+  transition:border-color .12s ease,box-shadow .12s ease,background .12s ease;
+}
+#answer:focus{
+  border-color:#777780;
+  box-shadow:0 0 0 2px rgba(255,255,255,.04);
+}
+#answer.bad{
+  border-color:var(--accent);
+  box-shadow:0 0 0 2px rgba(183,31,45,.18);
+  background:#170c0e;
+}
+#answer.good{
+  border-color:#dedede;
+  box-shadow:0 0 0 2px rgba(255,255,255,.09);
+}
+#submit{
+  min-width:0;
+  width:100%;
+}
+#finalCanvas{
+  width:min(100%,560px);
+  height:auto;
+  display:block;
+}
+@media(max-width:650px){
+  body{
+    padding:18px;
+  }
+  .answer-row{
+    grid-template-columns:1fr;
+  }
+  #submit{
+    height:50px;
+  }
+  .cipher-panel{
+    min-height:150px;
+    padding:14px;
+  }
+  .key-panel{
+    padding:12px;
+  }
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <h1 class="title">CRACKED CASE</h1>
+
+  <section id="startScreen" class="screen active">
+    <div class="start-wrap">
+      <button id="startButton" type="button">START</button>
+    </div>
+  </section>
+
+  <section id="gameScreen" class="screen">
+    <div class="topbar">
+      <canvas id="statusCanvas" width="1280" height="130"></canvas>
+    </div>
+
+    <div class="panel key-panel">
+      <canvas id="keyCanvas" width="1800" height="430"></canvas>
+    </div>
+
+    <div class="panel cipher-panel">
+      <canvas id="cipherCanvas" width="1800" height="300"></canvas>
+    </div>
+
+    <div class="answer-row">
+      <input id="answer" type="text" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="10" placeholder="ENTER CODE">
+      <button id="submit" type="button">SUBMIT</button>
+    </div>
+  </section>
+
+  <section id="endScreen" class="screen">
+    <div class="end-wrap">
+      <canvas id="finalCanvas" width="1120" height="360"></canvas>
+    </div>
+  </section>
+</div>
+
+<script>
+(()=>{
+  "use strict";
+
+  const startScreen=document.getElementById("startScreen");
+  const gameScreen=document.getElementById("gameScreen");
+  const endScreen=document.getElementById("endScreen");
+  const startButton=document.getElementById("startButton");
+  const submitButton=document.getElementById("submit");
+  const answerInput=document.getElementById("answer");
+  const statusCanvas=document.getElementById("statusCanvas");
+  const keyCanvas=document.getElementById("keyCanvas");
+  const cipherCanvas=document.getElementById("cipherCanvas");
+  const finalCanvas=document.getElementById("finalCanvas");
+  const statusCtx=statusCanvas.getContext("2d");
+  const keyCtx=keyCanvas.getContext("2d");
+  const cipherCtx=cipherCanvas.getContext("2d");
+  const finalCtx=finalCanvas.getContext("2d");
+
+  const chars="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const glyphs=[
+    "●","○","■","□","▲","△","◆","◇","★","✦","✚","✖","⊕","⊗","⬟","⬢",
+    "⬣","◉","◈","◐","◒","◓","◑","☾","☀","♠","♣","♥","⌂","⌁","✤","✥"
+  ];
+
+  let round=0;
+  let startedAt=0;
+  let penaltyMs=0;
+  let timerFrame=0;
+  let finalFrame=0;
+  let finalLockedTime=0;
+  let token="";
+  let keyEntries=[];
+  let symbolSequence=[];
+  let solved=false;
+
+  const randInt=max=>{
+    const range=4294967296;
+    const limit=range-(range%max);
+    const arr=new Uint32Array(1);
+    let n=range;
+    while(n>=limit){
+      crypto.getRandomValues(arr);
+      n=arr[0];
+    }
+    return n%max;
+  };
+
+  const shuffle=list=>{
+    const out=list.slice();
+    for(let i=out.length-1;i>0;i--){
+      const j=randInt(i+1);
+      const t=out[i];
+      out[i]=out[j];
+      out[j]=t;
+    }
+    return out;
+  };
+
+  const formatTime=ms=>{
+    const total=Math.max(0,Math.floor(ms/10));
+    const minutes=Math.floor(total/6000);
+    const seconds=Math.floor((total%6000)/100);
+    const hundredths=total%100;
+    return String(minutes).padStart(2,"0")+":"+String(seconds).padStart(2,"0")+"."+String(hundredths).padStart(2,"0");
+  };
+
+  const currentElapsed=()=>performance.now()-startedAt+penaltyMs;
+
+  const paintStatus=()=>{
+    const w=statusCanvas.width;
+    const h=statusCanvas.height;
+    statusCtx.clearRect(0,0,w,h);
+    statusCtx.fillStyle="#111113";
+    statusCtx.fillRect(0,0,w,h);
+    statusCtx.strokeStyle="#2b2b30";
+    statusCtx.lineWidth=2;
+    statusCtx.strokeRect(1,1,w-2,h-2);
+    statusCtx.fillStyle="#f4f4f4";
+    statusCtx.font="900 48px Arial";
+    statusCtx.textAlign="left";
+    statusCtx.textBaseline="middle";
+    statusCtx.fillText("ROUND "+String(round).padStart(2,"0"),58,h/2);
+    statusCtx.textAlign="right";
+    statusCtx.font="900 54px Arial";
+    statusCtx.fillText(formatTime(currentElapsed()),w-58,h/2);
+  };
+
+  const timerLoop=()=>{
+    if(!gameScreen.classList.contains("active")) return;
+    paintStatus();
+    timerFrame=requestAnimationFrame(timerLoop);
+  };
+
+  const drawKey=()=>{
+    const w=keyCanvas.width;
+    const h=keyCanvas.height;
+    keyCtx.clearRect(0,0,w,h);
+    const cols=6;
+    const rows=Math.ceil(keyEntries.length/cols);
+    const gap=18;
+    const outer=24;
+    const cellW=(w-outer*2-gap*(cols-1))/cols;
+    const cellH=(h-outer*2-gap*(rows-1))/rows;
+
+    for(let i=0;i<keyEntries.length;i++){
+      const c=i%cols;
+      const r=Math.floor(i/cols);
+      const x=outer+c*(cellW+gap);
+      const y=outer+r*(cellH+gap);
+      const entry=keyEntries[i];
+
+      keyCtx.fillStyle="#141417";
+      keyCtx.fillRect(x,y,cellW,cellH);
+      keyCtx.strokeStyle="#2f2f34";
+      keyCtx.lineWidth=2;
+      keyCtx.strokeRect(x+1,y+1,cellW-2,cellH-2);
+
+      keyCtx.fillStyle="#f5f5f5";
+      keyCtx.textAlign="center";
+      keyCtx.textBaseline="middle";
+      keyCtx.font="700 48px 'Arial Unicode MS','Segoe UI Symbol',Arial";
+      keyCtx.fillText(entry.s,x+cellW*.34,y+cellH*.5);
+
+      keyCtx.fillStyle="#66666d";
+      keyCtx.font="700 32px Arial";
+      keyCtx.fillText("=",x+cellW*.55,y+cellH*.5);
+
+      keyCtx.fillStyle="#e9e9ea";
+      keyCtx.font="900 42px Arial";
+      keyCtx.fillText(entry.c,x+cellW*.75,y+cellH*.5);
+    }
+  };
+
+  const drawCipher=()=>{
+    const w=cipherCanvas.width;
+    const h=cipherCanvas.height;
+    cipherCtx.clearRect(0,0,w,h);
+    const count=symbolSequence.length;
+    const maxSize=Math.min(130,(w-120)/count);
+    const start=w/2-((count-1)*maxSize)/2;
+    cipherCtx.textAlign="center";
+    cipherCtx.textBaseline="middle";
+    cipherCtx.font="700 "+Math.floor(maxSize*.72)+"px 'Arial Unicode MS','Segoe UI Symbol',Arial";
+    cipherCtx.fillStyle="#f4f4f4";
+    for(let i=0;i<count;i++){
+      cipherCtx.fillText(symbolSequence[i],start+i*maxSize,h*.48);
+      cipherCtx.strokeStyle="#303035";
+      cipherCtx.lineWidth=3;
+      cipherCtx.beginPath();
+      cipherCtx.moveTo(start+i*maxSize-maxSize*.34,h*.78);
+      cipherCtx.lineTo(start+i*maxSize+maxSize*.34,h*.78);
+      cipherCtx.stroke();
+    }
+  };
+
+  const makeRound=()=>{
+    solved=false;
+    answerInput.value="";
+    answerInput.classList.remove("bad","good");
+
+    const length=4+randInt(4);
+    const needed=[];
+    let plain="";
+    for(let i=0;i<length;i++){
+      const ch=chars[randInt(chars.length)];
+      plain+=ch;
+      if(!needed.includes(ch)) needed.push(ch);
+    }
+
+    const wantedCount=Math.max(18,needed.length+8);
+    const decoys=shuffle([...chars].filter(c=>!needed.includes(c))).slice(0,wantedCount-needed.length);
+    const shownChars=shuffle(needed.concat(decoys));
+    const shownGlyphs=shuffle(glyphs).slice(0,shownChars.length);
+
+    const map=new Map();
+    keyEntries=shownChars.map((c,i)=>{
+      map.set(c,shownGlyphs[i]);
+      return {c,s:shownGlyphs[i]};
+    });
+
+    symbolSequence=[...plain].map(c=>map.get(c));
+
+    const seed=new Uint8Array(length);
+    crypto.getRandomValues(seed);
+    const encoded=[...plain].map((c,i)=>c.charCodeAt(0)^seed[i]);
+    token=encoded.map((n,i)=>String.fromCharCode(n^seed[i])).join("");
+    seed.fill(0);
+    plain="";
+
+    drawKey();
+    drawCipher();
+    paintStatus();
+    requestAnimationFrame(()=>answerInput.focus());
+  };
+
+  const nextRound=()=>{
+    round++;
+    if(round>30){
+      finishGame();
+      return;
+    }
+    makeRound();
+  };
+
+  const checkAnswer=()=>{
+    if(solved) return;
+    const typed=answerInput.value.trim().toUpperCase();
+    if(!typed) return;
+
+    let same=typed.length===token.length;
+    let mismatch=0;
+    const max=Math.max(typed.length,token.length);
+    for(let i=0;i<max;i++){
+      mismatch|=(typed.charCodeAt(i)||0)^(token.charCodeAt(i)||0);
+    }
+    same=same&&mismatch===0;
+
+    if(same){
+      solved=true;
+      answerInput.classList.remove("bad");
+      answerInput.classList.add("good");
+      answerInput.blur();
+      setTimeout(nextRound,170);
+    }else{
+      penaltyMs+=10000;
+      answerInput.classList.remove("good");
+      void answerInput.offsetWidth;
+      answerInput.classList.add("bad");
+      answerInput.select();
+      paintStatus();
+    }
+  };
+
+  const paintFinal=()=>{
+    if(!endScreen.classList.contains("active")) return;
+    const w=finalCanvas.width;
+    const h=finalCanvas.height;
+    finalCtx.clearRect(0,0,w,h);
+    finalCtx.fillStyle="#111113";
+    finalCtx.fillRect(0,0,w,h);
+    finalCtx.strokeStyle="#2b2b30";
+    finalCtx.lineWidth=3;
+    finalCtx.strokeRect(2,2,w-4,h-4);
+    finalCtx.textAlign="center";
+    finalCtx.textBaseline="middle";
+    finalCtx.fillStyle="#8f8f96";
+    finalCtx.font="900 44px Arial";
+    finalCtx.fillText("FINAL TIME",w/2,h*.34);
+    finalCtx.fillStyle="#f5f5f5";
+    finalCtx.font="900 86px Arial";
+    finalCtx.fillText(formatTime(finalLockedTime),w/2,h*.64);
+    finalFrame=requestAnimationFrame(paintFinal);
+  };
+
+  const finishGame=()=>{
+    cancelAnimationFrame(timerFrame);
+    finalLockedTime=currentElapsed();
+    gameScreen.classList.remove("active");
+    endScreen.classList.add("active");
+    cancelAnimationFrame(finalFrame);
+    finalFrame=requestAnimationFrame(paintFinal);
+    token="";
+    keyEntries=[];
+    symbolSequence=[];
+  };
+
+  const startGame=()=>{
+    cancelAnimationFrame(finalFrame);
+    round=0;
+    penaltyMs=0;
+    token="";
+    solved=false;
+    startScreen.classList.remove("active");
+    endScreen.classList.remove("active");
+    gameScreen.classList.add("active");
+    startedAt=performance.now();
+    nextRound();
+    cancelAnimationFrame(timerFrame);
+    timerFrame=requestAnimationFrame(timerLoop);
+  };
+
+  startButton.addEventListener("click",startGame);
+  submitButton.addEventListener("click",checkAnswer);
+  answerInput.addEventListener("keydown",e=>{
+    if(e.key==="Enter") checkAnswer();
+  });
+  answerInput.addEventListener("input",()=>{
+    answerInput.value=answerInput.value.toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,10);
+    answerInput.classList.remove("bad");
+  });
+
+  document.addEventListener("visibilitychange",()=>{
+    if(!document.hidden&&gameScreen.classList.contains("active")) paintStatus();
+  });
+
+  window.addEventListener("contextmenu",e=>e.preventDefault());
+  window.addEventListener("dragstart",e=>e.preventDefault());
+  window.addEventListener("selectstart",e=>{
+    if(e.target!==answerInput) e.preventDefault();
+  });
+})();
+</script>
+</body>
+</html>
