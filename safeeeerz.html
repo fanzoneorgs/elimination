@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<title>SAFECRACKER</title>
+<style>
+  :root{
+    --bg:#080808;
+    --panel:#0d0d0d;
+    --tile:#121212;
+    --tile2:#171717;
+    --text:#f0eadc;
+    --muted:#817b72;
+    --dim:#3a3834;
+    --line:#5d5952;
+    --live:#f5efe2;
+    --red:#a01d1d;
+    --red-bright:#c52828;
+    --border:#292722;
+  }
+
+  *{
+    box-sizing:border-box;
+    -webkit-tap-highlight-color:transparent;
+  }
+
+  html,body{
+    margin:0;
+    min-height:100%;
+    background:var(--bg);
+    color:var(--text);
+    font-family:"Courier New",Courier,monospace;
+  }
+
+  body{
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:18px;
+    overflow:auto;
+    background:
+      radial-gradient(circle at 50% 35%,rgba(255,255,255,.022),transparent 38%),
+      linear-gradient(#090909,#050505);
+    -webkit-user-select:none;
+    user-select:none;
+  }
+
+  button{font:inherit}
+
+  .timer-canvas{
+    display:block;
+    max-width:100%;
+    height:auto;
+    pointer-events:none;
+  }
+
+  .live-timer-canvas{
+    width:150px;
+    height:32px;
+  }
+
+  .final-timer-canvas{
+    width:min(360px,82vw);
+    height:auto;
+    margin:0 auto;
+  }
+
+  .screen{
+    display:none;
+    width:min(760px,96vw);
+    height:min(760px,92vh);
+    min-height:560px;
+    overflow:hidden;
+    border:1px solid #24221f;
+    background:#080808;
+  }
+
+  .screen.active{display:flex}
+
+  /* START */
+  #startScreen{
+    align-items:center;
+    justify-content:center;
+    flex-direction:column;
+    gap:28px;
+    padding:24px;
+  }
+
+  .title{
+    margin:0;
+    font-size:clamp(42px,9vw,88px);
+    line-height:.9;
+    letter-spacing:.105em;
+    text-indent:.105em;
+    font-weight:900;
+    text-shadow:0 3px 0 #000;
+  }
+
+  .rule{
+    width:min(360px,70vw);
+    height:1px;
+    background:linear-gradient(90deg,transparent,var(--muted),transparent);
+  }
+
+  .primary{
+    min-width:180px;
+    min-height:56px;
+    padding:14px 34px;
+    border:1px solid #48433b;
+    background:var(--text);
+    color:#0b0b0b;
+    font-weight:900;
+    font-size:18px;
+    letter-spacing:.14em;
+    cursor:pointer;
+    transition:transform .08s ease,background .12s ease;
+  }
+
+  .primary:active{
+    transform:translateY(2px);
+    background:#d7cfbf;
+  }
+
+  /* GAME */
+  #gameScreen{
+    flex-direction:column;
+    position:relative;
+  }
+
+  .topbar{
+    flex:none;
+    height:54px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:16px;
+    padding:0 18px;
+    border-bottom:1px solid var(--border);
+    background:#090909;
+    color:var(--muted);
+    font-size:14px;
+    letter-spacing:.08em;
+    z-index:20;
+  }
+
+  .topbar strong{
+    color:var(--text);
+    font-size:15px;
+  }
+
+  .game-area{
+    position:relative;
+    flex:1 1 auto;
+    min-height:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:28px;
+    overflow:hidden;
+    background:
+      linear-gradient(rgba(255,255,255,.014) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(255,255,255,.014) 1px,transparent 1px),
+      #070707;
+    background-size:26px 26px;
+  }
+
+  .safe-shell{
+    position:relative;
+    width:min(620px,96%);
+    min-height:470px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    padding:28px 24px 24px;
+    border:1px solid #302e29;
+    background:
+      linear-gradient(145deg,rgba(255,255,255,.018),transparent 36%),
+      #0b0b0b;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.008);
+  }
+
+  .safe-shell::before,
+  .safe-shell::after{
+    content:"";
+    position:absolute;
+    top:18px;
+    bottom:18px;
+    width:1px;
+    background:linear-gradient(transparent,#282622 12%,#282622 88%,transparent);
+    opacity:.65;
+  }
+
+  .safe-shell::before{left:17px}
+  .safe-shell::after{right:17px}
+
+
+  .lock-bank{
+    width:min(520px,100%);
+    height:365px;
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:12px;
+    align-items:stretch;
+  }
+
+  .pin{
+    position:relative;
+    min-width:0;
+    height:100%;
+    padding:0;
+    border:1px solid #34312c;
+    background:
+      linear-gradient(90deg,rgba(255,255,255,.012),transparent 24% 76%,rgba(255,255,255,.01)),
+      #0d0d0d;
+    color:var(--text);
+    cursor:pointer;
+    overflow:hidden;
+    touch-action:manipulation;
+    transition:border-color .08s ease,background .08s ease,box-shadow .08s ease,transform .07s ease;
+  }
+
+  .pin:active:not(.locked){
+    transform:translateY(2px);
+    background:#111;
+  }
+
+  .pin::before{
+    content:"";
+    position:absolute;
+    left:50%;
+    top:18px;
+    bottom:18px;
+    width:1px;
+    transform:translateX(-50%);
+    background:#1d1c19;
+    pointer-events:none;
+  }
+
+
+  .track{
+    position:absolute;
+    left:10px;
+    right:10px;
+    top:30px;
+    bottom:20px;
+    overflow:hidden;
+    pointer-events:none;
+  }
+
+  .target{
+    position:absolute;
+    left:0;
+    right:0;
+    height:var(--target-size,16px);
+    top:var(--target-y,50%);
+    transform:translateY(-50%);
+    border-top:1px solid #6f6a61;
+    border-bottom:1px solid #6f6a61;
+    background:rgba(240,234,220,.012);
+    transition:border-color .1s ease,background .1s ease,box-shadow .1s ease;
+  }
+
+  .target::before{
+    content:"";
+    position:absolute;
+    left:24%;
+    right:24%;
+    top:50%;
+    height:1px;
+    transform:translateY(-50%);
+    background:#a59e91;
+    opacity:.8;
+  }
+
+  .marker{
+    position:absolute;
+    left:50%;
+    top:0;
+    width:30px;
+    height:9px;
+    transform:translate(-50%,0);
+    background:var(--text);
+    border:1px solid #050505;
+    box-shadow:0 0 7px rgba(245,239,226,.22);
+    will-change:transform;
+  }
+
+  .marker::after{
+    content:"";
+    position:absolute;
+    left:50%;
+    top:50%;
+    width:4px;
+    height:4px;
+    transform:translate(-50%,-50%);
+    background:#0d0d0d;
+  }
+
+  .pin.locked{
+    cursor:default;
+    border-color:#5c574e;
+    background:#10100f;
+    box-shadow:inset 0 0 18px rgba(245,239,226,.028);
+  }
+
+  .pin.locked .target{
+    border-color:#a6a094;
+    background:rgba(245,239,226,.055);
+    box-shadow:inset 0 0 12px rgba(245,239,226,.035);
+  }
+
+  .pin.locked .target::before{
+    background:var(--live);
+    opacity:1;
+    box-shadow:0 0 6px rgba(245,239,226,.34);
+  }
+
+  .pin.locked .marker{
+    background:var(--live);
+    box-shadow:0 0 8px rgba(245,239,226,.44);
+  }
+
+  .pin.clunk{
+    animation:clunk .24s ease-out;
+  }
+
+  @keyframes clunk{
+    0%{transform:translateY(0)}
+    38%{transform:translateY(4px)}
+    100%{transform:translateY(0)}
+  }
+
+  .pin.miss{
+    border-color:rgba(197,40,40,.78);
+    box-shadow:inset 0 0 14px rgba(160,29,29,.13);
+  }
+
+  .pin.miss .marker{
+    background:#b84a4a;
+    box-shadow:0 0 7px rgba(180,55,55,.36);
+  }
+
+  .pin.miss .target{
+    border-color:rgba(160,29,29,.6);
+  }
+
+
+  .transition-card{
+    position:absolute;
+    inset:0;
+    z-index:30;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    flex-direction:column;
+    background:rgba(5,5,5,.92);
+    text-align:center;
+  }
+
+  .transition-card.show{display:flex}
+
+  .transition-card .big{
+    font-size:clamp(28px,6vw,54px);
+    font-weight:900;
+    letter-spacing:.1em;
+    text-indent:.1em;
+  }
+
+  .safe-open-visual{
+    width:min(360px,70%);
+    height:170px;
+    margin-bottom:25px;
+    position:relative;
+    border:1px solid #3b3832;
+    background:#0a0a0a;
+    overflow:hidden;
+  }
+
+  .safe-open-visual::before,
+  .safe-open-visual::after{
+    content:"";
+    position:absolute;
+    top:0;
+    bottom:0;
+    width:50%;
+    background:
+      linear-gradient(145deg,rgba(255,255,255,.022),transparent 44%),
+      #11110f;
+    transition:transform .55s cubic-bezier(.2,.72,.18,1);
+  }
+
+  .safe-open-visual::before{
+    left:0;
+    border-right:1px solid #312f2a;
+  }
+
+  .safe-open-visual::after{
+    right:0;
+    border-left:1px solid #312f2a;
+  }
+
+  .safe-open-visual.open::before{transform:translateX(-88%)}
+  .safe-open-visual.open::after{transform:translateX(88%)}
+
+  .safe-glow{
+    position:absolute;
+    inset:0;
+    background:radial-gradient(circle at 50% 50%,rgba(240,234,220,.22),rgba(240,234,220,.04) 28%,transparent 62%);
+    opacity:0;
+    transition:opacity .35s ease .12s;
+  }
+
+  .safe-open-visual.open .safe-glow{opacity:1}
+
+  /* END */
+  #endScreen{
+    align-items:center;
+    justify-content:center;
+    flex-direction:column;
+    padding:28px 20px;
+  }
+
+  .end-wrap{
+    width:min(520px,100%);
+    text-align:center;
+  }
+
+  .end-title{
+    margin:0 0 30px;
+    font-size:clamp(38px,8vw,68px);
+    letter-spacing:.1em;
+    text-indent:.1em;
+    line-height:.95;
+  }
+
+  .final-time{margin:26px 0 32px}
+
+  .final-time .label{
+    display:block;
+    color:var(--muted);
+    font-size:13px;
+    letter-spacing:.16em;
+    margin-bottom:7px;
+  }
+
+  @media (max-width:600px){
+    body{padding:8px}
+
+    .screen{
+      width:100%;
+      height:calc(100vh - 16px);
+      min-height:520px;
+    }
+
+    .topbar{
+      height:48px;
+      padding:0 11px;
+      font-size:11px;
+    }
+
+    .topbar strong{font-size:12px}
+
+    .game-area{padding:12px}
+
+    .safe-shell{
+      width:100%;
+      min-height:435px;
+      padding:24px 12px 18px;
+    }
+
+    .lock-bank{
+      height:340px;
+      gap:7px;
+    }
+
+    .track{
+      left:6px;
+      right:6px;
+    }
+
+    .marker{
+      width:min(30px,62%);
+      height:8px;
+    }
+
+  }
+
+  @media (max-width:420px){
+    .title{
+      font-size:36px;
+      letter-spacing:.08em;
+      text-indent:.08em;
+    }
+
+    .safe-shell{
+      min-height:420px;
+      padding-left:9px;
+      padding-right:9px;
+    }
+
+    .lock-bank{
+      height:325px;
+      gap:5px;
+    }
+
+  }
+
+  @media (prefers-reduced-motion:reduce){
+    .pin,
+    .primary,
+    .safe-open-visual::before,
+    .safe-open-visual::after,
+    .safe-glow{
+      transition:none;
+    }
+
+    .pin.clunk{animation:none}
+  }
+</style>
+</head>
+<body>
+
+<section id="startScreen" class="screen active">
+  <h1 class="title">SAFECRACKER</h1>
+  <div class="rule"></div>
+  <button id="startBtn" class="primary" type="button">START</button>
+</section>
+
+<section id="gameScreen" class="screen">
+  <div class="topbar">
+    <strong id="lockLabel">0 / 50</strong>
+    <canvas id="liveTimer" class="timer-canvas live-timer-canvas" width="300" height="64"></canvas>
+  </div>
+
+  <div id="gameArea" class="game-area">
+    <div class="safe-shell">
+      <div id="lockBank" class="lock-bank" aria-label="Five tumbler lock pins"></div>
+    </div>
+
+
+    <div id="transitionCard" class="transition-card" aria-live="polite">
+      <div id="safeOpenVisual" class="safe-open-visual" hidden>
+        <div class="safe-glow"></div>
+      </div>
+      <div id="transitionBig" class="big">LOCK SET</div>
+    </div>
+  </div>
+</section>
+
+<section id="endScreen" class="screen">
+  <div class="end-wrap">
+    <h2 class="end-title">SAFE OPENED</h2>
+    <div class="final-time">
+      <span class="label">FINAL TIME</span>
+      <canvas id="finalTimer" class="timer-canvas final-timer-canvas" width="720" height="160"></canvas>
+    </div>
+    <button id="restartBtn" class="primary" type="button">RESTART</button>
+  </div>
+</section>
+
+<script>
+(() => {
+  const TOTAL_LOCKS = 50;
+  const PINS_PER_SET = 5;
+  const SETS = 10;
+
+  // Speeds are normalized track-lengths per second. Difficulty rises gradually
+  // across ten sets: the sweet spot gets narrower while the five pins become
+  // faster and more varied, without a sudden jump between rounds.
+  const SET_CONFIG = [
+    {targetPx:18, speeds:[.44,.52,.59,.66,.73]},
+    {targetPx:17, speeds:[.48,.57,.64,.71,.77]},
+    {targetPx:16, speeds:[.53,.61,.69,.76,.83]},
+    {targetPx:15, speeds:[.57,.68,.75,.83,.91]},
+    {targetPx:14, speeds:[.63,.73,.81,.90,.98]},
+    {targetPx:13, speeds:[.69,.79,.88,.97,1.05]},
+    {targetPx:12, speeds:[.74,.85,.94,1.03,1.12]},
+    {targetPx:11, speeds:[.80,.91,1.00,1.10,1.19]},
+    {targetPx:10, speeds:[.84,.97,1.07,1.17,1.25]},
+    {targetPx:9,  speeds:[.86,1.00,1.12,1.21,1.31]}
+  ];
+
+  const startScreen = document.getElementById("startScreen");
+  const gameScreen = document.getElementById("gameScreen");
+  const endScreen = document.getElementById("endScreen");
+  const startBtn = document.getElementById("startBtn");
+  const restartBtn = document.getElementById("restartBtn");
+  const lockLabel = document.getElementById("lockLabel");
+  const liveTimer = document.getElementById("liveTimer");
+  const finalTimer = document.getElementById("finalTimer");
+  const lockBank = document.getElementById("lockBank");
+  const transitionCard = document.getElementById("transitionCard");
+  const transitionBig = document.getElementById("transitionBig");
+  const safeOpenVisual = document.getElementById("safeOpenVisual");
+
+  let pins = [];
+  let currentSet = 0;
+  let completed = 0;
+  let lockedForTransition = true;
+  let animationFrame = null;
+  let timerFrame = null;
+  let startedAt = 0;
+  let elapsedBeforePause = 0;
+  let timerRunning = false;
+  let lastAnimationTime = 0;
+  let transitionTimer = null;
+
+  function showScreen(screen){
+    [startScreen,gameScreen,endScreen].forEach(s => s.classList.remove("active"));
+    screen.classList.add("active");
+  }
+
+  function formatTime(ms){
+    const totalHundredths = Math.max(0,Math.floor(ms/10));
+    const minutes = Math.floor(totalHundredths/6000);
+    const seconds = Math.floor((totalHundredths%6000)/100);
+    const hundredths = totalHundredths%100;
+    return String(minutes).padStart(2,"0") + ":" +
+           String(seconds).padStart(2,"0") + "." +
+           String(hundredths).padStart(2,"0");
+  }
+
+  function drawTimerCanvas(canvas,text,large=false){
+    const ctx = canvas.getContext("2d");
+    const w = canvas.width;
+    const h = canvas.height;
+    ctx.clearRect(0,0,w,h);
+    ctx.fillStyle = "#f0eadc";
+    ctx.textAlign = large ? "center" : "right";
+    ctx.textBaseline = "middle";
+    ctx.font = large ? '900 96px "Courier New", monospace' : '900 34px "Courier New", monospace';
+    ctx.shadowColor = "rgba(0,0,0,.95)";
+    ctx.shadowBlur = 8;
+    ctx.shadowOffsetY = 3;
+    ctx.fillText(text,large ? w/2 : w-8,h/2);
+  }
+
+  function currentElapsed(){
+    return elapsedBeforePause + (timerRunning ? performance.now()-startedAt : 0);
+  }
+
+  function updateTimer(){
+    if(!timerRunning){
+      timerFrame = null;
+      return;
+    }
+    drawTimerCanvas(liveTimer,formatTime(currentElapsed()),false);
+    timerFrame = requestAnimationFrame(updateTimer);
+  }
+
+  function startTimer(){
+    if(timerRunning) return;
+    timerRunning = true;
+    startedAt = performance.now();
+    if(!timerFrame) timerFrame = requestAnimationFrame(updateTimer);
+  }
+
+  function pauseTimer(){
+    if(!timerRunning) return;
+    elapsedBeforePause += performance.now()-startedAt;
+    timerRunning = false;
+    if(timerFrame){
+      cancelAnimationFrame(timerFrame);
+      timerFrame = null;
+    }
+    drawTimerCanvas(liveTimer,formatTime(elapsedBeforePause),false);
+  }
+
+  function clearScheduled(){
+    if(transitionTimer){
+      clearTimeout(transitionTimer);
+      transitionTimer = null;
+    }
+  }
+
+  function randomBetween(min,max){
+    return min + Math.random()*(max-min);
+  }
+
+  function shuffledSpeeds(baseSpeeds){
+    const a = [...baseSpeeds];
+    for(let i=a.length-1;i>0;i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [a[i],a[j]] = [a[j],a[i]];
+    }
+    return a;
+  }
+
+  function createSet(){
+    pins = [];
+    lockBank.innerHTML = "";
+    lockLabel.textContent = `${completed} / ${TOTAL_LOCKS}`;
+
+    const config = SET_CONFIG[currentSet];
+    const speeds = shuffledSpeeds(config.speeds);
+
+    // Keep targets well away from the extreme edges and spread them across the
+    // array instead of stacking all five near the same height.
+    const targetBands = [
+      [0.20,0.35],
+      [0.40,0.54],
+      [0.63,0.79],
+      [0.27,0.43],
+      [0.53,0.69]
+    ];
+    const bandOffset = currentSet % targetBands.length;
+
+    for(let i=0;i<PINS_PER_SET;i++){
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "pin";
+      button.setAttribute("aria-label",`Tumbler ${i+1}`);
+
+      const track = document.createElement("div");
+      track.className = "track";
+
+      const target = document.createElement("div");
+      target.className = "target";
+
+      const marker = document.createElement("div");
+      marker.className = "marker";
+
+      track.append(target,marker);
+      button.append(track);
+      lockBank.appendChild(button);
+
+      const band = targetBands[(i+bandOffset)%targetBands.length];
+      const targetPos = randomBetween(band[0],band[1]);
+      target.style.setProperty("--target-y",`${targetPos*100}%`);
+      target.style.setProperty("--target-size",`${config.targetPx}px`);
+
+      let pos = ((i*0.19) + currentSet*0.11 + Math.random()*0.13) % 1;
+      let direction = ((i+currentSet)%2===0) ? 1 : -1;
+
+      const pin = {
+        index:i,
+        button,
+        track,
+        target,
+        marker,
+        targetPos,
+        targetPx:config.targetPx,
+        speed:speeds[i],
+        pos,
+        direction,
+        locked:false,
+        missUntil:0
+      };
+
+      button.addEventListener("click",() => attemptPin(pin));
+      pins.push(pin);
+    }
+
+    lockedForTransition = false;
+    lastAnimationTime = performance.now();
+    if(!animationFrame) animationFrame = requestAnimationFrame(animatePins);
+  }
+
+  function markerGeometry(pin){
+    const trackHeight = pin.track.clientHeight;
+    const markerHeight = pin.marker.offsetHeight || 9;
+    const travel = Math.max(1,trackHeight-markerHeight);
+    const markerTop = pin.pos*travel;
+    const markerCenter = markerTop + markerHeight/2;
+    const targetCenter = pin.targetPos*trackHeight;
+    return {trackHeight,markerHeight,travel,markerTop,markerCenter,targetCenter};
+  }
+
+  function renderPin(pin){
+    if(pin.locked){
+      const g = markerGeometry(pin);
+      const desiredTop = Math.max(0,Math.min(g.travel,g.targetCenter-g.markerHeight/2));
+      pin.marker.style.transform = `translate(-50%,${desiredTop}px)`;
+      return;
+    }
+
+    const g = markerGeometry(pin);
+    pin.marker.style.transform = `translate(-50%,${pin.pos*g.travel}px)`;
+  }
+
+  function animatePins(now){
+    animationFrame = null;
+    if(!gameScreen.classList.contains("active")) return;
+
+    const dt = Math.min(.04,Math.max(0,(now-lastAnimationTime)/1000));
+    lastAnimationTime = now;
+
+    if(!lockedForTransition){
+      pins.forEach(pin => {
+        if(pin.locked){
+          renderPin(pin);
+          return;
+        }
+
+        pin.pos += pin.direction*pin.speed*dt;
+
+        if(pin.pos>=1){
+          pin.pos = 1;
+          pin.direction = -1;
+        }else if(pin.pos<=0){
+          pin.pos = 0;
+          pin.direction = 1;
+        }
+
+        renderPin(pin);
+      });
+    }
+
+    animationFrame = requestAnimationFrame(animatePins);
+  }
+
+  function attemptPin(pin){
+    if(lockedForTransition || pin.locked) return;
+
+    const g = markerGeometry(pin);
+    // A hit is based on the marker center being within the visible sweet spot.
+    const halfTarget = pin.targetPx/2;
+    const isHit = Math.abs(g.markerCenter-g.targetCenter) <= halfTarget;
+
+    if(isHit){
+      pin.locked = true;
+      pin.pos = Math.max(0,Math.min(1,(g.targetCenter-g.markerHeight/2)/g.travel));
+      pin.button.classList.remove("miss");
+      pin.button.classList.add("locked","clunk");
+      renderPin(pin);
+      setTimeout(() => pin.button.classList.remove("clunk"),260);
+
+      completed++;
+      lockLabel.textContent = `${completed} / ${TOTAL_LOCKS}`;
+
+      if(pins.every(p => p.locked)) finishSet();
+    }else{
+      pin.button.classList.remove("miss");
+      void pin.button.offsetWidth;
+      pin.button.classList.add("miss");
+
+      // Reset only this tumbler to the edge it is travelling away from.
+      if(pin.direction>0){
+        pin.pos = 0;
+      }else{
+        pin.pos = 1;
+      }
+      renderPin(pin);
+
+      setTimeout(() => {
+        pin.button.classList.remove("miss");
+      },420);
+    }
+  }
+
+  function finishSet(){
+    if(lockedForTransition) return;
+    lockedForTransition = true;
+
+    if(currentSet < SETS-1){
+      pauseTimer();
+      transitionBig.textContent = "LOCK SET";
+      safeOpenVisual.hidden = true;
+      safeOpenVisual.classList.remove("open");
+      transitionCard.classList.add("show");
+
+      transitionTimer = setTimeout(() => {
+        currentSet++;
+        transitionCard.classList.remove("show");
+        createSet();
+        startTimer();
+        transitionTimer = null;
+      },850);
+    }else{
+      pauseTimer();
+      transitionBig.textContent = "SAFE OPEN";
+      safeOpenVisual.hidden = false;
+      safeOpenVisual.classList.remove("open");
+      transitionCard.classList.add("show");
+
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => safeOpenVisual.classList.add("open"));
+      });
+
+      transitionTimer = setTimeout(showResults,1050);
+    }
+  }
+
+  function showResults(){
+    const finalMs = elapsedBeforePause;
+    if(animationFrame){
+      cancelAnimationFrame(animationFrame);
+      animationFrame = null;
+    }
+    drawTimerCanvas(finalTimer,formatTime(finalMs),true);
+    transitionCard.classList.remove("show");
+    showScreen(endScreen);
+    transitionTimer = null;
+  }
+
+  function startGame(){
+    clearScheduled();
+
+    if(animationFrame){
+      cancelAnimationFrame(animationFrame);
+      animationFrame = null;
+    }
+    if(timerFrame){
+      cancelAnimationFrame(timerFrame);
+      timerFrame = null;
+    }
+
+    pins = [];
+    currentSet = 0;
+    completed = 0;
+    lockedForTransition = true;
+    startedAt = 0;
+    elapsedBeforePause = 0;
+    timerRunning = false;
+    lastAnimationTime = 0;
+
+    lockLabel.textContent = `0 / ${TOTAL_LOCKS}`;
+    transitionCard.classList.remove("show");
+    safeOpenVisual.hidden = true;
+    safeOpenVisual.classList.remove("open");
+    drawTimerCanvas(liveTimer,"00:00.00",false);
+
+    showScreen(gameScreen);
+    createSet();
+    startTimer();
+  }
+
+  startBtn.addEventListener("click",startGame);
+  restartBtn.addEventListener("click",startGame);
+
+  // Casual deterrents only. Browser developer tools cannot be securely disabled
+  // by code running in the same page, but ordinary selection/context interactions
+  // are suppressed to match the other role pages.
+  document.addEventListener("contextmenu",event => event.preventDefault());
+  document.addEventListener("dragstart",event => event.preventDefault());
+
+  window.addEventListener("resize",() => {
+    pins.forEach(renderPin);
+  });
+
+  drawTimerCanvas(liveTimer,"00:00.00",false);
+})();
+</script>
+</body>
+</html>
