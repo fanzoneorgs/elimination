@@ -1,0 +1,1235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<title>FACE</title>
+<style>
+  :root{
+    --bg:#080808;
+    --panel:#0d0d0d;
+    --tile:#121212;
+    --tile2:#171717;
+    --text:#f0eadc;
+    --muted:#817b72;
+    --dim:#3a3834;
+    --line:#5d5952;
+    --red:#a01d1d;
+    --red-bright:#c52828;
+    --border:#292722;
+  }
+
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+
+  html,body{
+    margin:0;
+    min-height:100%;
+    background:var(--bg);
+    color:var(--text);
+    font-family:"Courier New",Courier,monospace;
+  }
+
+  body{
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:18px;
+    overflow:auto;
+    background:
+      radial-gradient(circle at 50% 35%,rgba(255,255,255,.022),transparent 38%),
+      linear-gradient(#090909,#050505);
+    -webkit-user-select:none;
+    user-select:none;
+  }
+
+  button{font:inherit}
+
+  .timer-canvas{display:block;max-width:100%;height:auto;pointer-events:none}
+  .final-timer-canvas{width:min(360px,82vw);height:auto;margin:0 auto}
+
+  .screen{
+    display:none;
+    width:min(760px,96vw);
+    height:min(760px,92vh);
+    min-height:560px;
+    overflow:hidden;
+    border:1px solid #24221f;
+    background:#080808;
+  }
+  .screen.active{display:flex}
+
+  #startScreen{
+    align-items:center;
+    justify-content:center;
+    flex-direction:column;
+    gap:28px;
+    padding:24px;
+  }
+
+  .title{
+    margin:0;
+    font-size:clamp(52px,11vw,112px);
+    line-height:.9;
+    letter-spacing:.12em;
+    text-indent:.12em;
+    font-weight:900;
+    text-shadow:0 3px 0 #000;
+  }
+
+  .rule{
+    width:min(360px,70vw);
+    height:1px;
+    background:linear-gradient(90deg,transparent,var(--muted),transparent);
+  }
+
+  .primary{
+    min-width:180px;
+    min-height:56px;
+    padding:14px 34px;
+    border:1px solid #48433b;
+    background:var(--text);
+    color:#0b0b0b;
+    font-weight:900;
+    font-size:18px;
+    letter-spacing:.14em;
+    cursor:pointer;
+    transition:transform .08s ease,background .12s ease;
+  }
+  .primary:active{transform:translateY(2px);background:#d7cfbf}
+
+  #gameScreen{flex-direction:column;position:relative}
+
+  .topbar{
+    flex:none;
+    height:54px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:16px;
+    padding:0 18px;
+    border-bottom:1px solid var(--border);
+    background:#090909;
+    color:var(--muted);
+    font-size:14px;
+    letter-spacing:.08em;
+    z-index:20;
+  }
+  .topbar strong{color:var(--text);font-size:15px}
+  .top-left{display:flex;gap:18px;min-width:0;white-space:nowrap}
+
+  .game-area{
+    position:relative;
+    flex:1 1 auto;
+    min-height:0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+    overflow:hidden;
+    background:
+      linear-gradient(rgba(255,255,255,.012) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(255,255,255,.012) 1px,transparent 1px),
+      #070707;
+    background-size:28px 28px;
+  }
+
+  .phase-label{
+    position:absolute;
+    top:16px;
+    left:50%;
+    transform:translateX(-50%);
+    color:var(--muted);
+    font-size:12px;
+    font-weight:900;
+    letter-spacing:.16em;
+    text-align:center;
+    white-space:nowrap;
+    z-index:5;
+  }
+
+  .guest-stage{
+    width:min(430px,86%);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:15px;
+    opacity:1;
+    transform:scale(1);
+    transition:opacity .12s ease,transform .12s ease;
+  }
+  .guest-stage.hidden{opacity:0;transform:scale(.985)}
+
+  .portrait-frame{
+    width:min(280px,70vw);
+    aspect-ratio:4/5;
+    border:1px solid #45413b;
+    background:#0d0d0d;
+    overflow:hidden;
+    box-shadow:0 10px 24px rgba(0,0,0,.38);
+  }
+  .portrait-frame svg{width:100%;height:100%;display:block}
+
+  .guest-name{
+    min-height:32px;
+    color:var(--text);
+    font-size:clamp(18px,3.3vw,28px);
+    font-weight:900;
+    letter-spacing:.11em;
+    text-align:center;
+    text-shadow:0 2px 0 #000;
+  }
+
+  .snapshot-wrap{
+    width:min(650px,100%);
+    display:none;
+    flex-direction:column;
+    gap:14px;
+    align-items:center;
+  }
+  .snapshot-wrap.show{display:flex}
+
+  .snapshot-title{
+    font-size:13px;
+    font-weight:900;
+    letter-spacing:.16em;
+    color:var(--muted);
+  }
+
+  .party-grid{
+    width:100%;
+    display:grid;
+    gap:8px;
+    justify-content:center;
+  }
+  .party-person{
+    min-width:0;
+    border:1px solid #302e2a;
+    background:#0e0e0e;
+    overflow:hidden;
+    position:relative;
+  }
+  .party-person svg{display:block;width:100%;height:auto}
+  .party-person::after{
+    content:"";
+    position:absolute;
+    inset:0;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.012);
+    pointer-events:none;
+  }
+
+  .question-wrap{
+    width:min(650px,100%);
+    display:none;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:18px;
+  }
+  .question-wrap.show{display:flex}
+
+  .question-text{
+    min-height:52px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    width:100%;
+    color:#fff8ea;
+    font-size:clamp(22px,4.6vw,42px);
+    line-height:1.04;
+    font-weight:900;
+    letter-spacing:.07em;
+    text-align:center;
+    text-transform:uppercase;
+    text-shadow:0 3px 0 #000,0 0 14px rgba(0,0,0,.8);
+  }
+
+  .question-portrait{
+    width:min(220px,52vw);
+    aspect-ratio:4/5;
+    border:1px solid #45413b;
+    background:#0d0d0d;
+    overflow:hidden;
+  }
+  .question-portrait svg{width:100%;height:100%;display:block}
+
+  .answers{
+    width:100%;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+  }
+
+  .answer-btn{
+    min-height:66px;
+    border:1px solid #4a463f;
+    background:#121212;
+    color:var(--text);
+    padding:10px 12px;
+    font-weight:900;
+    font-size:clamp(13px,2.4vw,17px);
+    letter-spacing:.07em;
+    line-height:1.15;
+    cursor:pointer;
+    touch-action:manipulation;
+    transition:background .06s ease,transform .06s ease,border-color .08s ease,box-shadow .08s ease;
+  }
+  .answer-btn:active{transform:translateY(2px);background:#1f1f1f}
+  .answer-btn.correct{
+    border-color:#8b857b;
+    background:#181818;
+    box-shadow:inset 0 0 14px rgba(245,239,226,.06);
+  }
+  .answer-btn.wrong{
+    border-color:rgba(197,40,40,.78);
+    box-shadow:inset 0 0 14px rgba(197,40,40,.12);
+    color:#f0dada;
+  }
+
+  .portrait-answers{
+    width:100%;
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:8px;
+  }
+  .portrait-answer{
+    min-width:0;
+    padding:0;
+    border:1px solid #403c36;
+    background:#101010;
+    overflow:hidden;
+    cursor:pointer;
+    transition:transform .07s ease,border-color .08s ease,box-shadow .08s ease;
+  }
+  .portrait-answer:active{transform:scale(.975)}
+  .portrait-answer svg{display:block;width:100%;height:auto}
+  .portrait-answer.wrong{
+    border-color:rgba(197,40,40,.78);
+    box-shadow:inset 0 0 14px rgba(197,40,40,.12);
+  }
+  .portrait-answer.correct{
+    border-color:#8b857b;
+    box-shadow:inset 0 0 14px rgba(245,239,226,.07);
+  }
+
+  .feedback{
+    position:absolute;
+    bottom:14px;
+    left:50%;
+    transform:translateX(-50%);
+    min-height:20px;
+    color:var(--red-bright);
+    font-size:13px;
+    font-weight:900;
+    letter-spacing:.12em;
+    text-align:center;
+    opacity:0;
+    transition:opacity .08s ease;
+    z-index:8;
+  }
+  .feedback.show{opacity:1}
+
+  .transition-card{
+    position:absolute;
+    inset:0;
+    z-index:30;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    flex-direction:column;
+    background:rgba(5,5,5,.92);
+    text-align:center;
+  }
+  .transition-card.show{display:flex}
+  .transition-card .big{
+    font-size:clamp(28px,6vw,54px);
+    font-weight:900;
+    letter-spacing:.1em;
+    text-indent:.1em;
+  }
+
+  .impostor-grid{
+    width:min(650px,100%);
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:7px;
+  }
+  .impostor-card{
+    min-width:0;
+    padding:0;
+    border:1px solid #3b3833;
+    background:#101010;
+    overflow:hidden;
+    cursor:pointer;
+    transition:transform .07s ease,border-color .08s ease,box-shadow .08s ease;
+  }
+  .impostor-card:active{transform:scale(.975)}
+  .impostor-card svg{width:100%;height:auto;display:block}
+  .impostor-card.wrong{border-color:rgba(197,40,40,.8);box-shadow:inset 0 0 14px rgba(197,40,40,.12)}
+  .impostor-card.correct{border-color:#8b857b;box-shadow:inset 0 0 14px rgba(245,239,226,.08)}
+
+  #endScreen{
+    align-items:center;
+    justify-content:center;
+    flex-direction:column;
+    padding:28px 20px;
+  }
+  .end-wrap{width:min(520px,100%);text-align:center}
+  .end-title{
+    margin:0 0 30px;
+    font-size:clamp(38px,8vw,68px);
+    letter-spacing:.1em;
+    text-indent:.1em;
+    line-height:.95;
+  }
+  .results{
+    border-top:1px solid #3d3932;
+    border-bottom:1px solid #3d3932;
+    padding:18px 0;
+    margin-bottom:22px;
+  }
+  .result-row{
+    display:flex;
+    justify-content:space-between;
+    gap:20px;
+    padding:8px 4px;
+    color:var(--muted);
+    font-size:14px;
+    letter-spacing:.06em;
+  }
+  .result-row strong{color:var(--text);font-size:16px}
+  .final-time{margin:26px 0 32px}
+  .final-time .label{
+    display:block;
+    color:var(--muted);
+    font-size:13px;
+    letter-spacing:.16em;
+    margin-bottom:7px;
+  }
+
+  .shake{animation:shake .18s linear 1}
+  @keyframes shake{
+    0%{transform:translateX(0)}
+    25%{transform:translateX(-8px)}
+    50%{transform:translateX(7px)}
+    75%{transform:translateX(-4px)}
+    100%{transform:translateX(0)}
+  }
+
+  @media (max-width:600px){
+    body{padding:8px}
+    .screen{width:100%;height:calc(100vh - 16px);min-height:520px}
+    .topbar{height:48px;padding:0 11px;font-size:11px;gap:8px}
+    .topbar strong{font-size:12px}
+    .top-left{gap:10px}
+    .game-area{padding:16px 12px}
+    .portrait-frame{width:min(250px,68vw)}
+    .answers{gap:8px}
+    .answer-btn{min-height:58px;padding:8px;font-size:12px}
+    .portrait-answers{gap:6px}
+    .impostor-grid{grid-template-columns:repeat(5,1fr);gap:4px}
+    .party-grid{gap:5px}
+  }
+
+  @media (max-width:420px){
+    .top-left span:nth-child(2){display:none}
+    .portrait-answers{grid-template-columns:repeat(2,1fr);max-width:330px}
+    .portrait-answer:nth-child(n+3){margin-top:2px}
+    .question-portrait{width:min(190px,48vw)}
+  }
+
+  @media (prefers-reduced-motion:reduce){
+    .guest-stage,.answer-btn,.portrait-answer,.impostor-card,.primary{transition:none}
+    .shake{animation:none}
+  }
+</style>
+</head>
+<body>
+
+<section id="startScreen" class="screen active">
+  <h1 class="title">FACE</h1>
+  <div class="rule"></div>
+  <button id="startBtn" class="primary" type="button">START</button>
+</section>
+
+<section id="gameScreen" class="screen">
+  <div class="topbar">
+    <div class="top-left">
+      <span>ROUND <strong id="roundLabel">1 / 10</strong></span>
+      <span>MISTAKES <strong id="mistakeLabel">0</strong></span>
+    </div>
+  </div>
+
+  <div id="gameArea" class="game-area">
+    <div id="phaseLabel" class="phase-label"></div>
+
+    <div id="guestStage" class="guest-stage">
+      <div id="guestPortrait" class="portrait-frame"></div>
+      <div id="guestName" class="guest-name"></div>
+    </div>
+
+    <div id="snapshotWrap" class="snapshot-wrap">
+      <div class="snapshot-title">REMEMBER THEIR POSITIONS</div>
+      <div id="partyGrid" class="party-grid"></div>
+    </div>
+
+    <div id="questionWrap" class="question-wrap">
+      <div id="questionText" class="question-text"></div>
+      <div id="questionPortrait" class="question-portrait" hidden></div>
+      <div id="answers" class="answers"></div>
+      <div id="portraitAnswers" class="portrait-answers" hidden></div>
+      <div id="impostorGrid" class="impostor-grid" hidden></div>
+    </div>
+
+    <div id="feedback" class="feedback"></div>
+
+    <div id="transitionCard" class="transition-card" aria-live="polite">
+      <div id="transitionBig" class="big">ROUND CLEARED</div>
+    </div>
+  </div>
+</section>
+
+<section id="endScreen" class="screen">
+  <div class="end-wrap">
+    <h2 class="end-title">COVER MAINTAINED</h2>
+
+    <div class="results">
+      <div class="result-row"><span>CORRECT ANSWERS</span><strong id="finalCorrect">0</strong></div>
+      <div class="result-row"><span>INCORRECT ANSWERS</span><strong id="finalIncorrect">0</strong></div>
+    </div>
+
+    <div class="final-time">
+      <span class="label">FINAL TIME</span>
+      <canvas id="finalTimer" class="timer-canvas final-timer-canvas" width="720" height="160"></canvas>
+    </div>
+
+    <button id="restartBtn" class="primary" type="button">RESTART</button>
+  </div>
+</section>
+
+<script>
+(() => {
+  const WRONG_PENALTY_MS = 3000;
+
+  const rounds = [
+    {guests:4, questions:3, expose:2500, blackout:260, snapshot:4300, types:["identity","find"]},
+    {guests:5, questions:4, expose:2350, blackout:250, snapshot:4200, types:["identity","find","outfit"]},
+    {guests:6, questions:4, expose:2200, blackout:240, snapshot:4100, types:["identity","find","outfit","outfitReverse"]},
+    {guests:7, questions:5, expose:2100, blackout:230, snapshot:4000, types:["identity","outfit","feature","absent"]},
+    {guests:8, questions:5, expose:2000, blackout:220, snapshot:3900, types:["identity","outfit","feature","featureReverse","absent","present"]},
+    {guests:9, questions:6, expose:1900, blackout:210, snapshot:3800, types:["identity","outfit","outfitReverse","feature","featureReverse","absent","present","spatial"]},
+    {guests:10,questions:6, expose:1800, blackout:200, snapshot:3600, types:["outfit","outfitReverse","feature","featureReverse","absent","present","spatial"]},
+    {guests:11,questions:7, expose:1700, blackout:190, snapshot:3400, types:["identity","outfit","outfitReverse","feature","featureReverse","absent","present","spatial","between"]},
+    {guests:12,questions:7, expose:1600, blackout:180, snapshot:3200, types:["outfit","outfitReverse","feature","featureReverse","absent","present","spatial","between"]},
+    {guests:14,questions:8, expose:1500, blackout:170, snapshot:3000, types:["identity","outfit","outfitReverse","feature","featureReverse","absent","present","spatial","between","impostor"]}
+  ];
+
+  const skinTones = ["#d8b08b","#c99369","#e0b997","#a86f4e","#8d5b43","#edc6a6"];
+  const hairColors = ["#171411","#2d2119","#4a3325","#6b4c31","#8a6a49","#b7a07b","#5b3024"];
+  const accentColors = ["#d5cfbf","#b79a73","#9ea9ad","#8f2a2a","#827b70"];
+
+  const names = [
+    "BIANCA MORETTI","MARCO VELLA","SOFIA RUSSO","ENZO COSTA","LUCIA BIANCHI",
+    "NICO ROMANO","ELENA FERRARO","LUCA GRECO","GIULIA CONTI","MATTEO RIZZO",
+    "VALERIA NERI","DANTE MARINO","ISABELLA GATTI","PAOLO LEONE","ALESSIA VITALE",
+    "SALVO BARONE","CHIARA LOMBARDO","RENZO DE LUCA","MARTA MESSINA","FABIO CARUSO",
+    "SERENA FONTANA","ANTONIO PALERMO","VIOLA RINALDI","GIANNI AMATO","CAMILLA SERRA",
+    "ROCCO MARTINO","LIDIA ORLANDO","CARLO BASILE","NOEMI FARINA","TOMMASO BELLINI"
+  ];
+
+  const hairStyles = ["bob","wave","slick","crop","long","part","curl","buzz","updo","side"];
+  const outfitDefs = [
+    {name:"RED JACKET",color:"#722424"},
+    {name:"CHARCOAL SUIT",color:"#303236"},
+    {name:"BLACK SHIRT",color:"#171717"},
+    {name:"GREY COAT",color:"#55534f"},
+    {name:"OLIVE JACKET",color:"#4a4a32"},
+    {name:"BROWN COAT",color:"#5b4031"},
+    {name:"BURGUNDY TOP",color:"#5a2735"},
+    {name:"NAVY SUIT",color:"#273446"},
+    {name:"CREAM JACKET",color:"#b3aa94"},
+    {name:"PLUM COAT",color:"#493044"},
+    {name:"TAN JACKET",color:"#806b50"},
+    {name:"FOREST SUIT",color:"#344236"},
+    {name:"MAROON COAT",color:"#57292a"},
+    {name:"SLATE JACKET",color:"#46505a"},
+    {name:"TAUPE SUIT",color:"#625b52"},
+    {name:"BLUE-GREY COAT",color:"#4b5a63"}
+  ];
+
+  const featureDefs = [
+    {key:"glasses",label:"GLASSES"},
+    {key:"mustache",label:"A MUSTACHE"},
+    {key:"beard",label:"A BEARD"},
+    {key:"scar",label:"A SCAR"},
+    {key:"beauty",label:"A BEAUTY MARK"},
+    {key:"earrings",label:"EARRINGS"},
+    {key:"hat",label:"A HAT"}
+  ];
+
+  const guests = names.map((name,i) => ({
+    id:"g"+i,
+    name,
+    skin:skinTones[i%skinTones.length],
+    hair:hairColors[(i*3+1)%hairColors.length],
+    hairStyle:hairStyles[(i*7+2)%hairStyles.length],
+    outfit:outfitDefs[i%outfitDefs.length].color,
+    outfitName:outfitDefs[i%outfitDefs.length].name,
+    accent:accentColors[(i*2+1)%accentColors.length],
+    glasses:i%6===1 || i%11===0,
+    mustache:i%7===2,
+    beard:i%9===4,
+    scar:i%10===5,
+    beauty:i%8===3,
+    earrings:i%5===0 || i%9===2,
+    hat:i%13===6,
+    nose:34 + ((i*7)%9),
+    eyeGap:15 + ((i*5)%6),
+    mouth:20 + ((i*3)%9),
+    browTilt:(i%5)-2
+  }));
+
+  const startScreen=document.getElementById("startScreen");
+  const gameScreen=document.getElementById("gameScreen");
+  const endScreen=document.getElementById("endScreen");
+  const startBtn=document.getElementById("startBtn");
+  const restartBtn=document.getElementById("restartBtn");
+  const roundLabel=document.getElementById("roundLabel");
+  const mistakeLabel=document.getElementById("mistakeLabel");
+  const finalTimer=document.getElementById("finalTimer");
+  const finalCorrect=document.getElementById("finalCorrect");
+  const finalIncorrect=document.getElementById("finalIncorrect");
+  const phaseLabel=document.getElementById("phaseLabel");
+  const guestStage=document.getElementById("guestStage");
+  const guestPortrait=document.getElementById("guestPortrait");
+  const guestName=document.getElementById("guestName");
+  const snapshotWrap=document.getElementById("snapshotWrap");
+  const partyGrid=document.getElementById("partyGrid");
+  const questionWrap=document.getElementById("questionWrap");
+  const questionText=document.getElementById("questionText");
+  const questionPortrait=document.getElementById("questionPortrait");
+  const answers=document.getElementById("answers");
+  const portraitAnswers=document.getElementById("portraitAnswers");
+  const impostorGrid=document.getElementById("impostorGrid");
+  const feedback=document.getElementById("feedback");
+  const transitionCard=document.getElementById("transitionCard");
+  const transitionBig=document.getElementById("transitionBig");
+  const gameArea=document.getElementById("gameArea");
+
+  let roundIndex=0;
+  let party=[];
+  let partyLayout=[];
+  let questionQueue=[];
+  let questionIndex=0;
+  let mistakes=0;
+  let correctAnswers=0;
+  let incorrectAnswers=0;
+  let penaltyMs=0;
+  let startedAt=0;
+  let locked=true;
+  let timeouts=[];
+  let seenGuestIds=new Set();
+
+  function showScreen(screen){
+    [startScreen,gameScreen,endScreen].forEach(s=>s.classList.remove("active"));
+    screen.classList.add("active");
+  }
+
+  function shuffle(array){
+    const a=[...array];
+    for(let i=a.length-1;i>0;i--){
+      const j=Math.floor(Math.random()*(i+1));
+      [a[i],a[j]]=[a[j],a[i]];
+    }
+    return a;
+  }
+
+  function sample(array,n){return shuffle(array).slice(0,n)}
+
+  function later(fn,ms){
+    const id=setTimeout(()=>{
+      timeouts=timeouts.filter(x=>x!==id);
+      fn();
+    },ms);
+    timeouts.push(id);
+    return id;
+  }
+
+  function clearAllTimers(){
+    timeouts.forEach(clearTimeout);
+    timeouts=[];
+  }
+
+  function formatTime(ms){
+    const totalHundredths=Math.max(0,Math.floor(ms/10));
+    const minutes=Math.floor(totalHundredths/6000);
+    const seconds=Math.floor((totalHundredths%6000)/100);
+    const hundredths=totalHundredths%100;
+    return String(minutes).padStart(2,"0")+":"+String(seconds).padStart(2,"0")+"."+String(hundredths).padStart(2,"0");
+  }
+
+  function drawTimerCanvas(canvas,text,large=false){
+    const ctx=canvas.getContext("2d");
+    const w=canvas.width,h=canvas.height;
+    ctx.clearRect(0,0,w,h);
+    ctx.fillStyle="#f0eadc";
+    ctx.textAlign=large?"center":"right";
+    ctx.textBaseline="middle";
+    ctx.font=large?'900 96px "Courier New", monospace':'900 34px "Courier New", monospace';
+    ctx.shadowColor="rgba(0,0,0,.95)";
+    ctx.shadowBlur=8;
+    ctx.shadowOffsetY=3;
+    ctx.fillText(text,large?w/2:w-8,h/2);
+  }
+
+  function svgPortrait(g,compact=false){
+    const W=240,H=300;
+    const eyeY=128;
+    const faceX=120;
+    const headTop=66;
+    const rx=58,ry=72;
+    const eyeDx=g.eyeGap;
+    const browOffset=g.browTilt;
+    const hair=g.hair;
+    const skin=g.skin;
+    const outfit=g.outfit;
+    const accent=g.accent;
+
+    let hairBack="";
+    let hairFront="";
+    if(g.hairStyle==="long"){
+      hairBack=`<path d="M59 82 Q67 44 120 41 Q177 44 184 84 L186 218 Q162 232 151 203 L89 203 Q72 230 53 214 Z" fill="${hair}"/>`;
+      hairFront=`<path d="M63 97 Q72 49 120 48 Q169 49 178 96 Q156 79 134 77 Q111 70 86 80 Q76 86 63 97Z" fill="${hair}"/>`;
+    } else if(g.hairStyle==="bob"){
+      hairBack=`<path d="M57 84 Q69 45 120 43 Q174 46 184 88 L178 176 Q163 191 148 177 L92 177 Q71 191 58 173 Z" fill="${hair}"/>`;
+      hairFront=`<path d="M61 94 Q71 48 120 47 Q168 49 179 94 Q146 77 119 81 Q92 73 61 94Z" fill="${hair}"/>`;
+    } else if(g.hairStyle==="updo"){
+      hairBack=`<circle cx="120" cy="48" r="28" fill="${hair}"/><path d="M61 93 Q68 48 120 47 Q171 49 179 93 L169 112 Q148 85 120 82 Q92 84 70 111Z" fill="${hair}"/>`;
+    } else if(g.hairStyle==="buzz"){
+      hairFront=`<path d="M65 91 Q72 53 120 51 Q169 53 176 91 Q149 71 120 71 Q91 72 65 91Z" fill="${hair}"/>`;
+    } else if(g.hairStyle==="slick"){
+      hairFront=`<path d="M63 92 Q71 48 120 48 Q168 49 178 92 Q149 76 118 72 Q93 70 63 92Z" fill="${hair}"/><path d="M91 58 Q118 45 154 62" fill="none" stroke="${accent}" stroke-opacity=".18" stroke-width="3"/>`;
+    } else if(g.hairStyle==="wave" || g.hairStyle==="curl"){
+      hairFront=`<path d="M60 96 Q63 70 80 55 Q97 39 120 47 Q143 36 163 55 Q178 70 181 98 Q161 80 145 85 Q130 72 111 82 Q90 72 60 96Z" fill="${hair}"/>`;
+    } else if(g.hairStyle==="part"){
+      hairFront=`<path d="M62 94 Q72 49 119 48 Q166 49 178 93 Q150 77 129 73 L118 51 Q97 65 80 79 Q69 84 62 94Z" fill="${hair}"/>`;
+    } else if(g.hairStyle==="side"){
+      hairFront=`<path d="M62 95 Q68 56 115 47 Q169 45 179 94 Q153 75 129 75 Q111 60 81 82 Q69 88 62 95Z" fill="${hair}"/>`;
+    } else {
+      hairFront=`<path d="M64 93 Q72 52 120 48 Q167 51 177 93 Q151 76 120 75 Q91 75 64 93Z" fill="${hair}"/>`;
+    }
+
+    const glasses=g.glasses?`<g fill="none" stroke="#d7d0c0" stroke-width="3" opacity=".86"><rect x="${faceX-eyeDx-24}" y="${eyeY-13}" width="42" height="27" rx="8"/><rect x="${faceX+eyeDx-18}" y="${eyeY-13}" width="42" height="27" rx="8"/><path d="M${faceX-2} ${eyeY} H${faceX+2}"/><path d="M${faceX-eyeDx-24} ${eyeY-3} L69 ${eyeY-8}"/><path d="M${faceX+eyeDx+24} ${eyeY-3} L171 ${eyeY-8}"/></g>`:"";
+
+    const mustache=g.mustache?`<path d="M98 174 Q108 164 120 172 Q132 164 143 174 Q132 185 120 178 Q108 185 98 174Z" fill="${hair}"/>`:"";
+    const beard=g.beard?`<path d="M84 176 Q93 218 120 224 Q148 218 156 176 Q146 200 120 205 Q95 200 84 176Z" fill="${hair}" opacity=".86"/>`:"";
+    const scar=g.scar?`<path d="M146 136 l18 19 M150 134 l18 19" stroke="#7f3a34" stroke-width="2" opacity=".85"/>`:"";
+    const beauty=g.beauty?`<circle cx="91" cy="166" r="2.8" fill="#3b2923"/>`:"";
+    const earrings=g.earrings?`<g fill="${accent}"><circle cx="62" cy="157" r="5"/><circle cx="178" cy="157" r="5"/></g>`:"";
+    const hat=g.hat?`<g><path d="M70 71 Q76 38 120 36 Q163 38 170 71 Z" fill="#292725" stroke="#555049"/><rect x="49" y="68" width="142" height="10" rx="5" fill="#35312d"/><rect x="81" y="60" width="78" height="6" fill="${accent}" opacity=".7"/></g>`:"";
+
+    const decoration=compact?"":`<g opacity=".14" stroke="#f0eadc" stroke-width="1"><path d="M18 34 H68"/><path d="M172 34 H222"/><path d="M18 266 H68"/><path d="M172 266 H222"/></g>`;
+
+    return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Portrait of ${g.name}">
+      <rect width="240" height="300" fill="#0b0b0b"/>
+      <rect x="9" y="9" width="222" height="282" fill="none" stroke="#24221f"/>
+      ${decoration}
+      <path d="M36 300 Q45 232 90 221 L150 221 Q196 233 204 300Z" fill="${outfit}"/>
+      <path d="M87 222 L110 251 L120 234 L130 251 L153 222" fill="none" stroke="${accent}" stroke-width="5" opacity=".78"/>
+      <rect x="101" y="188" width="38" height="43" rx="16" fill="${skin}"/>
+      ${hairBack}
+      <ellipse cx="63" cy="143" rx="12" ry="19" fill="${skin}"/>
+      <ellipse cx="177" cy="143" rx="12" ry="19" fill="${skin}"/>
+      <ellipse cx="120" cy="140" rx="58" ry="72" fill="${skin}"/>
+      ${hairFront}
+      <path d="M${120-eyeDx-14} ${eyeY-15+browOffset} Q${120-eyeDx} ${eyeY-21-browOffset} ${120-eyeDx+14} ${eyeY-15}" fill="none" stroke="${hair}" stroke-width="4" stroke-linecap="round"/>
+      <path d="M${120+eyeDx-14} ${eyeY-15-browOffset} Q${120+eyeDx} ${eyeY-21+browOffset} ${120+eyeDx+14} ${eyeY-15}" fill="none" stroke="${hair}" stroke-width="4" stroke-linecap="round"/>
+      <ellipse cx="${120-eyeDx}" cy="${eyeY}" rx="6.5" ry="4.3" fill="#171514"/>
+      <ellipse cx="${120+eyeDx}" cy="${eyeY}" rx="6.5" ry="4.3" fill="#171514"/>
+      <circle cx="${118-eyeDx}" cy="${eyeY-1}" r="1.2" fill="#e9e1d2"/>
+      <circle cx="${118+eyeDx}" cy="${eyeY-1}" r="1.2" fill="#e9e1d2"/>
+      <path d="M120 135 Q${114+(g.nose-34)} 154 120 162 Q127 164 132 160" fill="none" stroke="#7b4d3d" stroke-width="2.5" stroke-linecap="round" opacity=".7"/>
+      <path d="M${120-g.mouth/2} 184 Q120 190 ${120+g.mouth/2} 184 Q120 196 ${120-g.mouth/2} 184Z" fill="#7a3d3b" opacity=".84"/>
+      ${glasses}${mustache}${beard}${scar}${beauty}${earrings}${hat}
+    </svg>`;
+  }
+
+  function setPortrait(el,g,compact=false){el.innerHTML=svgPortrait(g,compact)}
+
+  function uniqueByAttr(attr){
+    const counts=new Map();
+    party.forEach(g=>counts.set(g[attr],(counts.get(g[attr])||0)+1));
+    return party.filter(g=>counts.get(g[attr])===1);
+  }
+
+  function featureCandidates(){
+    const out=[];
+    featureDefs.forEach(def=>{
+      const matches=party.filter(g=>g[def.key]);
+      if(matches.length===1) out.push({guest:matches[0],label:def.label,key:def.key});
+    });
+    return out;
+  }
+
+  function nameDistractors(target){
+    const targetFirst=target.name.split(" ")[0];
+    const targetLast=target.name.split(" ").slice(-1)[0];
+    const previous=shuffle(guests.filter(g=>
+      g.id!==target.id &&
+      seenGuestIds.has(g.id) &&
+      !party.some(p=>p.id===g.id)
+    ));
+    const sameFirst=guests.filter(g=>g.id!==target.id && g.name.split(" ")[0]===targetFirst);
+    const sameLast=guests.filter(g=>g.id!==target.id && g.name.split(" ").slice(-1)[0]===targetLast);
+    const current=party.filter(g=>g.id!==target.id);
+    const out=[];
+    const used=new Set();
+
+    function add(g){
+      if(!g || g.id===target.id || used.has(g.id)) return;
+      used.add(g.id);
+      out.push(g);
+    }
+
+    // Later rounds guarantee at least one familiar face/name from an older
+    // lineup whenever one exists. This makes the text-only questions much
+    // harder without introducing multiple correct answers.
+    if(roundIndex>=3 && previous.length) add(previous[0]);
+    if(roundIndex>=6 && previous.length>1) add(previous[1]);
+
+    const pool=shuffle([...sameFirst,...sameLast,...current,...previous,...guests.filter(g=>g.id!==target.id)]);
+    for(const g of pool){
+      add(g);
+      if(out.length===3) break;
+    }
+    return out.slice(0,3);
+  }
+
+  function getSpatialQuestion(){
+    const cols=partyLayout.cols;
+    const rows=partyLayout.rows;
+    const cells=partyLayout.cells;
+    const candidates=[];
+    for(let r=0;r<rows;r++){
+      for(let c=0;c<cols;c++){
+        const i=r*cols+c;
+        const g=cells[i];
+        if(!g) continue;
+        if(c<cols-1 && cells[i+1]) candidates.push({text:`WHO STOOD TO ${g.name}'S RIGHT?`,answer:cells[i+1]});
+        if(c>0 && cells[i-1]) candidates.push({text:`WHO STOOD TO ${g.name}'S LEFT?`,answer:cells[i-1]});
+      }
+    }
+    return candidates.length?candidates[Math.floor(Math.random()*candidates.length)]:null;
+  }
+
+  function getBetweenQuestion(){
+    const cols=partyLayout.cols;
+    const rows=partyLayout.rows;
+    const cells=partyLayout.cells;
+    const candidates=[];
+    for(let r=0;r<rows;r++){
+      for(let c=1;c<cols-1;c++){
+        const left=cells[r*cols+c-1],mid=cells[r*cols+c],right=cells[r*cols+c+1];
+        if(left&&mid&&right) candidates.push({text:`WHO STOOD BETWEEN ${left.name} AND ${right.name}?`,answer:mid});
+      }
+    }
+    return candidates.length?candidates[Math.floor(Math.random()*candidates.length)]:null;
+  }
+
+  function buildQuestion(type){
+    if(type==="identity"){
+      const target=party[Math.floor(Math.random()*party.length)];
+      return {type,text:"WHO IS THIS?",target,options:shuffle([target,...nameDistractors(target)])};
+    }
+
+    if(type==="find"){
+      const target=party[Math.floor(Math.random()*party.length)];
+      return {type,text:`FIND ${target.name}`,target,options:shuffle([target,...sample(party.filter(g=>g.id!==target.id),3)])};
+    }
+
+    if(type==="outfit"){
+      const unique=uniqueByAttr("outfitName");
+      if(!unique.length) return buildQuestion("identity");
+      const target=unique[Math.floor(Math.random()*unique.length)];
+      // Hard mode: no portrait is shown. The player must remember which name
+      // belonged to the clothing description.
+      return {type:"names",text:`IN THIS LINEUP, WHO WORE THE ${target.outfitName}?`,target,options:shuffle([target,...nameDistractors(target)])};
+    }
+
+    if(type==="outfitReverse"){
+      const target=party[Math.floor(Math.random()*party.length)];
+      const otherOutfits=[...new Set(party.filter(g=>g.id!==target.id).map(g=>g.outfitName).filter(x=>x!==target.outfitName))];
+      const globalOutfits=outfitDefs.map(o=>o.name).filter(x=>x!==target.outfitName);
+      const labels=shuffle([...otherOutfits,...globalOutfits]);
+      const opts=[target.outfitName];
+      for(const label of labels){
+        if(opts.includes(label)) continue;
+        opts.push(label);
+        if(opts.length===4) break;
+      }
+      return {type:"labels",text:`WHAT WAS ${target.name} WEARING?`,answer:target.outfitName,options:shuffle(opts)};
+    }
+
+    if(type==="feature"){
+      const cand=featureCandidates();
+      if(!cand.length) return buildQuestion("outfit");
+      const picked=cand[Math.floor(Math.random()*cand.length)];
+      // Hard mode: names only, so the visible feature cannot be re-checked.
+      return {type:"names",text:`IN THIS LINEUP, WHO HAD ${picked.label}?`,target:picked.guest,options:shuffle([picked.guest,...nameDistractors(picked.guest)])};
+    }
+
+    if(type==="featureReverse"){
+      const candidates=party.filter(g=>featureDefs.some(def=>g[def.key]));
+      if(!candidates.length) return buildQuestion("feature");
+      const target=candidates[Math.floor(Math.random()*candidates.length)];
+      const trueFeatures=featureDefs.filter(def=>target[def.key]);
+      const picked=trueFeatures[Math.floor(Math.random()*trueFeatures.length)];
+      const falseFeatures=shuffle(featureDefs.filter(def=>!target[def.key]));
+      const opts=[picked.label,...falseFeatures.slice(0,3).map(def=>def.label)];
+      return {type:"labels",text:`WHICH DETAIL BELONGED TO ${target.name}?`,answer:picked.label,options:shuffle(opts)};
+    }
+
+    if(type==="absent"){
+      const previousAbsent=guests.filter(g=>seenGuestIds.has(g.id) && !party.some(p=>p.id===g.id));
+      const anyAbsent=guests.filter(g=>!party.some(p=>p.id===g.id));
+      const pool=roundIndex>=1 && previousAbsent.length ? previousAbsent : anyAbsent;
+      const target=pool[Math.floor(Math.random()*pool.length)];
+      // Exactly one option was absent. On later rounds that absent person is
+      // preferably somebody the player genuinely saw in an earlier round.
+      return {type:"names",text:"WHO WAS NOT PRESENT IN THE LINEUP?",target,options:shuffle([target,...sample(party,3)])};
+    }
+
+    if(type==="present"){
+      const target=party[Math.floor(Math.random()*party.length)];
+      const previousAbsent=guests.filter(g=>seenGuestIds.has(g.id) && !party.some(p=>p.id===g.id));
+      const unseenAbsent=guests.filter(g=>!party.some(p=>p.id===g.id) && !seenGuestIds.has(g.id));
+      const pool=shuffle([...previousAbsent,...unseenAbsent]);
+      const distractors=[];
+      for(const g of pool){
+        if(distractors.some(x=>x.id===g.id)) continue;
+        distractors.push(g);
+        if(distractors.length===3) break;
+      }
+      if(distractors.length<3) return buildQuestion("absent");
+      return {type:"names",text:"WHICH OF THESE GUESTS WAS PRESENT?",target,options:shuffle([target,...distractors])};
+    }
+
+    if(type==="spatial"){
+      const sq=getSpatialQuestion();
+      if(!sq) return buildQuestion("identity");
+      return {type:"names",text:sq.text,target:sq.answer,options:shuffle([sq.answer,...nameDistractors(sq.answer)])};
+    }
+
+    if(type==="between"){
+      const bq=getBetweenQuestion();
+      if(!bq) return buildQuestion("spatial");
+      return {type:"names",text:bq.text,target:bq.answer,options:shuffle([bq.answer,...nameDistractors(bq.answer)])};
+    }
+
+    return buildQuestion("identity");
+  }
+
+  function makeQuestionQueue(config){
+    const allowed=[...config.types].filter(t=>t!=="impostor");
+    const q=[];
+    const usedKinds=new Set();
+    while(q.length<config.questions){
+      let type;
+      const unused=allowed.filter(t=>!usedKinds.has(t));
+      if(unused.length) type=unused[Math.floor(Math.random()*unused.length)];
+      else type=allowed[Math.floor(Math.random()*allowed.length)];
+      const built=buildQuestion(type);
+      q.push(built);
+      usedKinds.add(type);
+    }
+    return q;
+  }
+
+  function buildLayout(){
+    const count=party.length;
+    let cols=4;
+    if(count>=9) cols=5;
+    if(count>=13) cols=5;
+    const rows=Math.ceil(count/cols);
+    return {cols,rows,cells:[...party]};
+  }
+
+  function renderSnapshot(){
+    snapshotWrap.classList.add("show");
+    guestStage.style.display="none";
+    questionWrap.classList.remove("show");
+    phaseLabel.textContent="PARTY SNAPSHOT";
+
+    const {cols}=partyLayout;
+    partyGrid.style.gridTemplateColumns=`repeat(${cols},1fr)`;
+    partyGrid.innerHTML="";
+    partyLayout.cells.forEach(g=>{
+      const el=document.createElement("div");
+      el.className="party-person";
+      el.innerHTML=svgPortrait(g,true);
+      partyGrid.appendChild(el);
+    });
+  }
+
+  function clearQuestionUI(){
+    answers.innerHTML="";
+    portraitAnswers.innerHTML="";
+    impostorGrid.innerHTML="";
+    answers.hidden=false;
+    portraitAnswers.hidden=true;
+    impostorGrid.hidden=true;
+    questionPortrait.hidden=true;
+    questionPortrait.innerHTML="";
+  }
+
+  function showFeedback(text){
+    feedback.textContent=text;
+    feedback.classList.add("show");
+    later(()=>feedback.classList.remove("show"),700);
+  }
+
+  function penalize(button){
+    mistakes++;
+    incorrectAnswers++;
+    penaltyMs+=WRONG_PENALTY_MS;
+    mistakeLabel.textContent=String(mistakes);
+    if(button){button.classList.add("wrong");later(()=>button.classList.remove("wrong"),420)}
+    gameArea.classList.remove("shake");
+    void gameArea.offsetWidth;
+    gameArea.classList.add("shake");
+    showFeedback("INCORRECT  +3.00");
+  }
+
+  function acceptCorrect(button){
+    locked=true;
+    correctAnswers++;
+    if(button) button.classList.add("correct");
+    later(()=>{
+      questionIndex++;
+      if(questionIndex<questionQueue.length){
+        renderQuestion(questionQueue[questionIndex]);
+      }else if(roundIndex===rounds.length-1){
+        startImpostorFinal();
+      }else{
+        finishRound();
+      }
+    },320);
+  }
+
+  function nameButton(g,target){
+    const btn=document.createElement("button");
+    btn.type="button";
+    btn.className="answer-btn";
+    btn.textContent=g.name;
+    btn.addEventListener("click",()=>{
+      if(locked) return;
+      if(g.id===target.id) acceptCorrect(btn); else penalize(btn);
+    });
+    return btn;
+  }
+
+  function labelButton(label,answer){
+    const btn=document.createElement("button");
+    btn.type="button";
+    btn.className="answer-btn";
+    btn.textContent=label;
+    btn.addEventListener("click",()=>{
+      if(locked) return;
+      if(label===answer) acceptCorrect(btn); else penalize(btn);
+    });
+    return btn;
+  }
+
+  function portraitButton(g,target,parentClass="portrait-answer"){
+    const btn=document.createElement("button");
+    btn.type="button";
+    btn.className=parentClass;
+    btn.setAttribute("aria-label",g.name);
+    btn.innerHTML=svgPortrait(g,true);
+    btn.addEventListener("click",()=>{
+      if(locked) return;
+      if(g.id===target.id) acceptCorrect(btn); else penalize(btn);
+    });
+    return btn;
+  }
+
+  function renderQuestion(q){
+    locked=true;
+    snapshotWrap.classList.remove("show");
+    guestStage.style.display="none";
+    questionWrap.classList.add("show");
+    phaseLabel.textContent=`QUESTION ${questionIndex+1} / ${questionQueue.length}`;
+    clearQuestionUI();
+    questionText.textContent=q.text;
+
+    if(q.type==="identity"){
+      questionPortrait.hidden=false;
+      setPortrait(questionPortrait,q.target);
+      q.options.forEach(g=>answers.appendChild(nameButton(g,q.target)));
+    }else if(q.type==="find" || q.type==="portrait-choice"){
+      answers.hidden=true;
+      portraitAnswers.hidden=false;
+      q.options.forEach(g=>portraitAnswers.appendChild(portraitButton(g,q.target)));
+    }else if(q.type==="labels"){
+      q.options.forEach(label=>answers.appendChild(labelButton(label,q.answer)));
+    }else{
+      q.options.forEach(g=>answers.appendChild(nameButton(g,q.target)));
+    }
+
+    requestAnimationFrame(()=>locked=false);
+  }
+
+  function startQuestions(){
+    snapshotWrap.classList.remove("show");
+    questionIndex=0;
+    questionQueue=makeQuestionQueue(rounds[roundIndex]);
+    renderQuestion(questionQueue[0]);
+  }
+
+  function presentGuests(index=0){
+    const config=rounds[roundIndex];
+    snapshotWrap.classList.remove("show");
+    questionWrap.classList.remove("show");
+    guestStage.style.display="flex";
+    guestStage.classList.remove("hidden");
+
+    if(index>=party.length){
+      guestStage.classList.add("hidden");
+      later(()=>{
+        guestStage.style.display="none";
+        renderSnapshot();
+        later(startQuestions,config.snapshot);
+      },260);
+      return;
+    }
+
+    const g=party[index];
+    phaseLabel.textContent=`MEMORIZE  ${String(index+1).padStart(2,"0")} / ${String(party.length).padStart(2,"0")}`;
+    setPortrait(guestPortrait,g);
+    guestName.textContent=g.name;
+    guestStage.classList.remove("hidden");
+
+    later(()=>{
+      guestStage.classList.add("hidden");
+      later(()=>presentGuests(index+1),config.blackout);
+    },config.expose);
+  }
+
+  function beginRound(){
+    locked=true;
+    const config=rounds[roundIndex];
+    roundLabel.textContent=`${roundIndex+1} / ${rounds.length}`;
+    transitionCard.classList.remove("show");
+    feedback.classList.remove("show");
+    clearQuestionUI();
+    questionWrap.classList.remove("show");
+    snapshotWrap.classList.remove("show");
+
+    party=sample(guests,config.guests);
+    party.forEach(g=>seenGuestIds.add(g.id));
+    if(roundIndex>=6){
+      // Make later rounds slightly nastier by occasionally including similar surnames/first names.
+      const surnameGroups=new Map();
+      guests.forEach(g=>{
+        const last=g.name.split(" ").slice(-1)[0];
+        if(!surnameGroups.has(last)) surnameGroups.set(last,[]);
+        surnameGroups.get(last).push(g);
+      });
+    }
+
+    partyLayout=buildLayout();
+    presentGuests(0);
+  }
+
+  function finishRound(){
+    locked=true;
+    questionWrap.classList.remove("show");
+    phaseLabel.textContent="";
+    transitionBig.textContent="ROUND CLEARED";
+    transitionCard.classList.add("show");
+    later(()=>{
+      roundIndex++;
+      beginRound();
+    },850);
+  }
+
+  function startImpostorFinal(){
+    locked=true;
+    const absentPool=guests.filter(g=>!party.some(p=>p.id===g.id));
+    const impostor=absentPool[Math.floor(Math.random()*absentPool.length)];
+    const crowd=shuffle([...party,impostor]);
+
+    clearQuestionUI();
+    questionWrap.classList.add("show");
+    questionText.textContent="IDENTIFY THE IMPOSTOR";
+    phaseLabel.textContent="FINAL CHECK";
+    answers.hidden=true;
+    portraitAnswers.hidden=true;
+    impostorGrid.hidden=false;
+
+    crowd.forEach(g=>{
+      const btn=document.createElement("button");
+      btn.type="button";
+      btn.className="impostor-card";
+      btn.setAttribute("aria-label",g.name);
+      btn.innerHTML=svgPortrait(g,true);
+      btn.addEventListener("click",()=>{
+        if(locked) return;
+        if(g.id===impostor.id){
+          btn.classList.add("correct");
+          correctAnswers++;
+          locked=true;
+          later(finishGame,420);
+        }else{
+          penalize(btn);
+        }
+      });
+      impostorGrid.appendChild(btn);
+    });
+
+    requestAnimationFrame(()=>locked=false);
+  }
+
+  function finishGame(){
+    locked=true;
+    const total=performance.now()-startedAt+penaltyMs;
+    finalCorrect.textContent=String(correctAnswers);
+    finalIncorrect.textContent=String(incorrectAnswers);
+    drawTimerCanvas(finalTimer,formatTime(total),true);
+    showScreen(endScreen);
+  }
+
+  function startGame(){
+    clearAllTimers();
+    roundIndex=0;
+    party=[];
+    partyLayout=[];
+    questionQueue=[];
+    questionIndex=0;
+    mistakes=0;
+    correctAnswers=0;
+    incorrectAnswers=0;
+    penaltyMs=0;
+    seenGuestIds=new Set();
+    locked=true;
+    mistakeLabel.textContent="0";
+    roundLabel.textContent=`1 / ${rounds.length}`;
+    transitionCard.classList.remove("show");
+    feedback.classList.remove("show");
+    showScreen(gameScreen);
+    startedAt=performance.now();
+    beginRound();
+  }
+
+  startBtn.addEventListener("click",startGame);
+  restartBtn.addEventListener("click",startGame);
+
+  document.addEventListener("contextmenu",event=>event.preventDefault());
+  document.addEventListener("dragstart",event=>event.preventDefault());
+
+})();
+</script>
+</body>
+</html>
