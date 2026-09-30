@@ -1,0 +1,1376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<title>HACKER</title>
+<style>
+  :root{
+    --bg:#080808;
+    --panel:#0d0d0d;
+    --tile:#121212;
+    --tile2:#171717;
+    --text:#f0eadc;
+    --muted:#777169;
+    --dim:#3a3834;
+    --line:#5d5952;
+    --live:#f5efe2;
+    --red:#a01d1d;
+    --border:#292722;
+  }
+
+  *{
+    box-sizing:border-box;
+    -webkit-tap-highlight-color:transparent;
+  }
+
+  html,body{
+    margin:0;
+    min-height:100%;
+    background:var(--bg);
+    color:var(--text);
+    font-family:"Courier New", Courier, monospace;
+  }
+
+  body{
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:18px;
+    overflow:auto;
+    background:
+      radial-gradient(circle at 50% 35%,rgba(255,255,255,.022),transparent 38%),
+      linear-gradient(#090909,#050505);
+  }
+
+  button{
+    font:inherit;
+  }
+
+  body{
+    -webkit-user-select:none;
+    user-select:none;
+  }
+
+  .timer-canvas{
+    display:block;
+    max-width:100%;
+    height:auto;
+    pointer-events:none;
+  }
+
+  .live-timer-canvas{
+    width:150px;
+    height:32px;
+  }
+
+  .final-timer-canvas{
+    width:min(360px,82vw);
+    height:auto;
+    margin:0 auto;
+  }
+
+  .screen{
+    display:none;
+    width:min(760px,96vw);
+    height:min(760px,92vh);
+    min-height:560px;
+    overflow:hidden;
+    border:1px solid #24221f;
+    background:#080808;
+  }
+
+  .screen.active{
+    display:flex;
+  }
+
+  /* START */
+  #startScreen{
+    align-items:center;
+    justify-content:center;
+    flex-direction:column;
+    gap:28px;
+    padding:24px;
+  }
+
+  .title{
+    margin:0;
+    font-size:clamp(50px,11vw,110px);
+    line-height:.9;
+    letter-spacing:.12em;
+    text-indent:.12em;
+    font-weight:900;
+    text-shadow:0 3px 0 #000;
+  }
+
+  .rule{
+    width:min(360px,70vw);
+    height:1px;
+    background:linear-gradient(90deg,transparent,var(--muted),transparent);
+  }
+
+  .primary{
+    min-width:180px;
+    min-height:56px;
+    padding:14px 34px;
+    border:1px solid #48433b;
+    background:var(--text);
+    color:#0b0b0b;
+    font-weight:900;
+    font-size:18px;
+    letter-spacing:.14em;
+    cursor:pointer;
+    transition:transform .08s ease,background .12s ease;
+  }
+
+  .primary:active{
+    transform:translateY(2px);
+    background:#d7cfbf;
+  }
+
+  /* GAME */
+  #gameScreen{
+    flex-direction:column;
+  }
+
+  .topbar{
+    flex:none;
+    height:54px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:0 18px;
+    border-bottom:1px solid var(--border);
+    background:#090909;
+    color:var(--muted);
+    font-size:14px;
+    letter-spacing:.08em;
+  }
+
+  .topbar strong{
+    color:var(--text);
+    font-size:15px;
+  }
+
+  .game-area{
+    position:relative;
+    flex:1 1 auto;
+    min-height:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:28px;
+    overflow:hidden;
+    background:
+      linear-gradient(rgba(255,255,255,.015) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(255,255,255,.015) 1px,transparent 1px),
+      #070707;
+    background-size:26px 26px;
+  }
+
+  .board-wrap{
+    width:min(560px,90%);
+    aspect-ratio:1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+
+  #board{
+    width:100%;
+    height:100%;
+    display:grid;
+    gap:5px;
+  }
+
+  .tile{
+    position:relative;
+    min-width:0;
+    min-height:0;
+    padding:0;
+    border:1px solid #292723;
+    background:
+      linear-gradient(145deg,rgba(255,255,255,.018),transparent 45%),
+      var(--tile);
+    cursor:pointer;
+    touch-action:manipulation;
+    user-select:none;
+    overflow:hidden;
+    transition:
+      border-color .14s ease,
+      background .14s ease,
+      transform .08s ease;
+  }
+
+  .tile:active{
+    transform:scale(.965);
+  }
+
+  .tile.server{
+    cursor:default;
+    background:
+      radial-gradient(circle at 50% 50%,rgba(240,234,220,.07),transparent 55%),
+      #111;
+    border-color:#4d4941;
+  }
+
+  .cable-layer{
+    position:absolute;
+    inset:0;
+    transform:rotate(var(--rotation,0deg));
+    transition:transform .22s cubic-bezier(.22,.72,.18,1);
+    transform-origin:50% 50%;
+  }
+
+  .wire{
+    position:absolute;
+    background:var(--line);
+    border-radius:999px;
+    transition:
+      background .14s ease,
+      box-shadow .14s ease;
+  }
+
+  /* Exact center-to-edge cable segments. */
+  .wire.n{
+    left:50%;
+    top:0;
+    width:8%;
+    height:51%;
+    transform:translateX(-50%);
+  }
+
+  .wire.e{
+    left:50%;
+    top:50%;
+    width:51%;
+    height:8%;
+    transform:translateY(-50%);
+  }
+
+  .wire.s{
+    left:50%;
+    top:50%;
+    width:8%;
+    height:51%;
+    transform:translateX(-50%);
+  }
+
+  .wire.w{
+    left:0;
+    top:50%;
+    width:51%;
+    height:8%;
+    transform:translateY(-50%);
+  }
+
+  .hub{
+    position:absolute;
+    left:50%;
+    top:50%;
+    width:16%;
+    aspect-ratio:1;
+    transform:translate(-50%,-50%);
+    border-radius:50%;
+    background:var(--line);
+    transition:
+      background .14s ease,
+      box-shadow .14s ease;
+  }
+
+  .tile.connected .wire,
+  .tile.connected .hub{
+    background:var(--live);
+    box-shadow:0 0 7px rgba(245,239,226,.42);
+  }
+
+  .tile.connected{
+    border-color:#514d45;
+  }
+
+  .tile.box-error{
+    border-color:rgba(160,29,29,.7);
+    box-shadow:inset 0 0 12px rgba(160,29,29,.13);
+  }
+
+  .tile.box-error .wire,
+  .tile.box-error .hub{
+    background:#7e3434;
+    box-shadow:0 0 7px rgba(160,29,29,.35);
+  }
+
+  .tile.box-error.connected .wire,
+  .tile.box-error.connected .hub{
+    background:#b84a4a;
+    box-shadow:0 0 8px rgba(180,55,55,.5);
+  }
+
+  .terminal{
+    position:absolute;
+    left:50%;
+    top:50%;
+    width:24%;
+    aspect-ratio:1;
+    transform:translate(-50%,-50%);
+    border:2px solid #655f56;
+    border-radius:50%;
+    background:#0b0b0b;
+    z-index:3;
+    color:transparent;
+    transition:
+      background .14s ease,
+      border-color .14s ease,
+      box-shadow .14s ease;
+  }
+
+  .tile.connected .terminal{
+    background:var(--live);
+    border-color:#111;
+    box-shadow:0 0 7px rgba(245,239,226,.38);
+  }
+
+  .server-core{
+    position:absolute;
+    left:50%;
+    top:50%;
+    width:36%;
+    aspect-ratio:1;
+    transform:translate(-50%,-50%) rotate(45deg);
+    border:2px solid var(--live);
+    background:#0a0a0a;
+    z-index:3;
+    box-shadow:0 0 10px rgba(245,239,226,.22);
+  }
+
+  .server-core::after{
+    content:"";
+    position:absolute;
+    inset:28%;
+    background:var(--live);
+  }
+
+  .tile.pulse{
+    animation:tilePulse .35s ease-out;
+  }
+
+  @keyframes tilePulse{
+    0%{filter:brightness(1)}
+    45%{filter:brightness(1.65)}
+    100%{filter:brightness(1)}
+  }
+
+  .transition-card{
+    position:absolute;
+    inset:0;
+    z-index:10;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    flex-direction:column;
+    background:rgba(5,5,5,.9);
+    text-align:center;
+  }
+
+  .transition-card.show{
+    display:flex;
+  }
+
+  .transition-card .big{
+    font-size:clamp(28px,6vw,54px);
+    font-weight:900;
+    letter-spacing:.1em;
+    text-indent:.1em;
+    margin-bottom:9px;
+  }
+
+  .transition-card .small{
+    color:var(--muted);
+    font-size:14px;
+    letter-spacing:.14em;
+  }
+
+  /* END */
+  #endScreen{
+    align-items:center;
+    justify-content:center;
+    flex-direction:column;
+    padding:28px 20px;
+  }
+
+  .end-wrap{
+    width:min(520px,100%);
+    text-align:center;
+  }
+
+  .end-title{
+    margin:0 0 30px;
+    font-size:clamp(38px,8vw,68px);
+    letter-spacing:.1em;
+    text-indent:.1em;
+    line-height:.95;
+  }
+
+
+
+  .result-row{
+    display:flex;
+    justify-content:space-between;
+    gap:20px;
+    padding:8px 4px;
+    color:var(--muted);
+    font-size:14px;
+    letter-spacing:.06em;
+  }
+
+  .result-row strong{
+    color:var(--text);
+    font-size:16px;
+  }
+
+  .final-time{
+    margin:26px 0 32px;
+  }
+
+  .final-time .label{
+    display:block;
+    color:var(--muted);
+    font-size:13px;
+    letter-spacing:.16em;
+    margin-bottom:7px;
+  }
+
+
+  .final-time .unit{
+    display:block;
+    margin-top:6px;
+    color:var(--muted);
+    font-size:12px;
+    letter-spacing:.14em;
+  }
+
+  @media (max-width:600px){
+    body{padding:8px}
+
+    .screen{
+      width:100%;
+      height:calc(100vh - 16px);
+      min-height:520px;
+    }
+
+    .topbar{
+      height:48px;
+      padding:0 12px;
+      font-size:12px;
+    }
+
+    .topbar strong{font-size:13px}
+
+    .game-area{
+      padding:14px;
+    }
+
+    .board-wrap{
+      width:min(94vw,520px);
+    }
+
+    #board{
+      gap:3px;
+    }
+
+  }
+
+  @media (prefers-reduced-motion:reduce){
+    .cable-layer,
+    .tile,
+    .primary{
+      transition:none;
+    }
+
+    .tile.pulse{
+      animation:none;
+    }
+  }
+</style>
+</head>
+<body>
+
+<section id="startScreen" class="screen active">
+  <h1 class="title">HACKER</h1>
+  <div class="rule"></div>
+  <button id="startBtn" class="primary" type="button">START</button>
+</section>
+
+<section id="gameScreen" class="screen">
+  <div class="topbar">
+    <span>ROUND <strong id="networkLabel">1 / 10</strong></span>
+    <canvas id="liveTimer" class="timer-canvas live-timer-canvas" width="300" height="64"></canvas>
+  </div>
+
+  <div class="game-area">
+    <div class="board-wrap">
+      <div id="board" aria-label="Network puzzle"></div>
+    </div>
+
+    <div id="transitionCard" class="transition-card" aria-live="polite">
+      <div id="transitionBig" class="big">NETWORK CLEARED</div>
+    </div>
+  </div>
+</section>
+
+<section id="endScreen" class="screen">
+  <div class="end-wrap">
+    <h2 class="end-title">ACCESS GRANTED</h2>
+
+    <div class="final-time">
+      <span class="label">FINAL TIME</span>
+      <canvas id="totalTimeResult" class="timer-canvas final-timer-canvas" width="720" height="160"></canvas>
+    </div>
+
+    <button id="restartBtn" class="primary" type="button">RESTART</button>
+  </div>
+</section>
+
+<script>
+(() => {
+  const rounds = [
+    {size:4, extraLinks:1,  minCorners:5,  minJunctions:2, minLeaves:3, maxLeaves:6,  maxCrosses:1, wrongRatio:.72},
+    {size:4, extraLinks:2,  minCorners:6,  minJunctions:3, minLeaves:3, maxLeaves:6,  maxCrosses:1, wrongRatio:.78},
+    {size:5, extraLinks:2,  minCorners:8,  minJunctions:4, minLeaves:4, maxLeaves:8,  maxCrosses:2, wrongRatio:.80},
+    {size:5, extraLinks:4,  minCorners:9,  minJunctions:5, minLeaves:4, maxLeaves:8,  maxCrosses:2, wrongRatio:.84},
+    {size:6, extraLinks:4,  minCorners:11, minJunctions:6, minLeaves:5, maxLeaves:10, maxCrosses:3, wrongRatio:.86},
+    {size:6, extraLinks:6,  minCorners:13, minJunctions:8, minLeaves:5, maxLeaves:10, maxCrosses:3, wrongRatio:.88},
+    {size:7, extraLinks:7,  minCorners:15, minJunctions:9, minLeaves:6, maxLeaves:12, maxCrosses:4, wrongRatio:.90},
+    {size:7, extraLinks:9,  minCorners:17, minJunctions:11,minLeaves:6, maxLeaves:12, maxCrosses:4, wrongRatio:.92},
+    {size:8, extraLinks:10, minCorners:20, minJunctions:13,minLeaves:7, maxLeaves:14, maxCrosses:5, wrongRatio:.94},
+    {size:8, extraLinks:13, minCorners:23, minJunctions:15,minLeaves:7, maxLeaves:14, maxCrosses:5, wrongRatio:.96}
+  ];
+
+  const sizes = rounds.map(r=>r.size);
+
+  // Bit masks: N=1, E=2, S=4, W=8.
+  const N = 1, E = 2, S = 4, W = 8;
+  const DIRS = [
+    {bit:N, dr:-1, dc:0, opposite:S, cls:"n"},
+    {bit:E, dr:0, dc:1, opposite:W, cls:"e"},
+    {bit:S, dr:1, dc:0, opposite:N, cls:"s"},
+    {bit:W, dr:0, dc:-1, opposite:E, cls:"w"}
+  ];
+
+  const startScreen = document.getElementById("startScreen");
+  const gameScreen = document.getElementById("gameScreen");
+  const endScreen = document.getElementById("endScreen");
+
+  const startBtn = document.getElementById("startBtn");
+  const restartBtn = document.getElementById("restartBtn");
+  const board = document.getElementById("board");
+
+  const networkLabel = document.getElementById("networkLabel");
+  const liveTimer = document.getElementById("liveTimer");
+  const transitionCard = document.getElementById("transitionCard");
+  const transitionBig = document.getElementById("transitionBig");
+
+  const totalTimeResult = document.getElementById("totalTimeResult");
+
+  let stage = 0;
+  let grid = [];
+  let serverIndex = 0;
+  let currentStart = 0;
+  let accumulatedMs = 0;
+  let totalRotations = 0;
+  let locked = false;
+  let timerRunning = false;
+  let timerFrame = null;
+
+  function drawTimerCanvas(canvas,text,finalDisplay=false){
+    const ctx=canvas.getContext("2d");
+    const w=canvas.width;
+    const h=canvas.height;
+
+    ctx.clearRect(0,0,w,h);
+
+    // Draw directly to bitmap pixels; the displayed number is not a DOM text node.
+    ctx.fillStyle="#f0eadc";
+    ctx.textAlign=finalDisplay ? "center" : "right";
+    ctx.textBaseline="middle";
+    ctx.font=finalDisplay
+      ? '900 96px "Courier New", monospace'
+      : '900 34px "Courier New", monospace';
+
+    ctx.shadowColor="rgba(0,0,0,.95)";
+    ctx.shadowBlur=8;
+    ctx.shadowOffsetY=3;
+
+    ctx.fillText(
+      text,
+      finalDisplay ? w/2 : w-8,
+      h/2
+    );
+  }
+
+  function formatTime(ms){
+    const totalHundredths=Math.max(0,Math.floor(ms/10));
+    const minutes=Math.floor(totalHundredths/6000);
+    const seconds=Math.floor((totalHundredths%6000)/100);
+    const hundredths=totalHundredths%100;
+
+    return (
+      String(minutes).padStart(2,"0") + ":" +
+      String(seconds).padStart(2,"0") + "." +
+      String(hundredths).padStart(2,"0")
+    );
+  }
+
+  function currentElapsedMs(){
+    return accumulatedMs + (timerRunning ? performance.now()-currentStart : 0);
+  }
+
+  function updateLiveTimer(){
+    drawTimerCanvas(liveTimer,formatTime(currentElapsedMs()),false);
+
+    if(timerRunning){
+      timerFrame=requestAnimationFrame(updateLiveTimer);
+    }
+  }
+
+  function startRoundTimer(){
+    currentStart=performance.now();
+    timerRunning=true;
+
+    if(timerFrame){
+      cancelAnimationFrame(timerFrame);
+    }
+
+    updateLiveTimer();
+  }
+
+  function pauseRoundTimer(){
+    if(!timerRunning) return;
+
+    accumulatedMs+=performance.now()-currentStart;
+    timerRunning=false;
+
+    if(timerFrame){
+      cancelAnimationFrame(timerFrame);
+      timerFrame=null;
+    }
+
+    drawTimerCanvas(liveTimer,formatTime(accumulatedMs),false);
+  }
+
+  function showScreen(screen){
+    [startScreen,gameScreen,endScreen].forEach(s=>s.classList.remove("active"));
+    screen.classList.add("active");
+  }
+
+  function idx(r,c,size){
+    return r*size+c;
+  }
+
+  function rc(index,size){
+    return [Math.floor(index/size),index%size];
+  }
+
+  function shuffled(array){
+    const a=[...array];
+    for(let i=a.length-1;i>0;i--){
+      const j=Math.floor(Math.random()*(i+1));
+      [a[i],a[j]]=[a[j],a[i]];
+    }
+    return a;
+  }
+
+  function chooseServer(size){
+    if(size%2===1){
+      const c=Math.floor(size/2);
+      return idx(c,c,size);
+    }
+
+    const a=size/2-1;
+    const b=size/2;
+    const options=[
+      idx(a,a,size),idx(a,b,size),
+      idx(b,a,size),idx(b,b,size)
+    ];
+    return options[Math.floor(Math.random()*options.length)];
+  }
+
+  function rotateMaskClockwise(mask){
+    let out=0;
+    if(mask&N) out|=E;
+    if(mask&E) out|=S;
+    if(mask&S) out|=W;
+    if(mask&W) out|=N;
+    return out;
+  }
+
+  function maskAtRotation(mask,rotation){
+    let result=mask;
+    for(let i=0;i<rotation;i++){
+      result=rotateMaskClockwise(result);
+    }
+    return result;
+  }
+
+  function degree(mask){
+    let n=0;
+    for(const d of DIRS){
+      if(mask&d.bit) n++;
+    }
+    return n;
+  }
+
+  function currentMask(cell){
+    return maskAtRotation(cell.solvedMask,cell.rotation);
+  }
+
+  function isCorrectOrientation(cell){
+    // Mask comparison naturally handles rotational symmetry:
+    // straight pieces are also correct at 180°, crosses at every rotation.
+    return currentMask(cell)===cell.solvedMask;
+  }
+
+  // Build a maze-like network inspired by classic pipe puzzles:
+  // long winding runs, many corners, branching T-junctions, and a limited
+  // number of legitimate terminal/computer endpoints.
+  function createNetwork(size){
+    const count=size*size;
+    const cells=Array.from({length:count},()=>({
+      solvedMask:0,
+      rotation:0,
+      visualTurns:0,
+      connected:false,
+      element:null
+    }));
+
+    serverIndex=chooseServer(size);
+
+    const visited=new Set([serverIndex]);
+    const stack=[serverIndex];
+
+    function unvisitedNeighbors(index){
+      const [r,c]=rc(index,size);
+      return shuffled(DIRS).filter(d=>{
+        const nr=r+d.dr;
+        const nc=c+d.dc;
+        return nr>=0&&nr<size&&nc>=0&&nc<size&&!visited.has(idx(nr,nc,size));
+      });
+    }
+
+    // Growing-tree maze. Most of the time we continue from the newest cell
+    // (creating long snakes); sometimes we jump to an older cell to branch.
+    while(visited.size<count){
+      let from;
+
+      if(stack.length && Math.random()<0.74){
+        from=stack[stack.length-1];
+      }else{
+        const expandable=[...visited].filter(i=>unvisitedNeighbors(i).length);
+        from=expandable[Math.floor(Math.random()*expandable.length)];
+      }
+
+      const options=unvisitedNeighbors(from);
+
+      if(!options.length){
+        const pos=stack.lastIndexOf(from);
+        if(pos>=0) stack.splice(pos,1);
+        continue;
+      }
+
+      // Prefer a turn over continuing straight when possible.
+      const [fr,fc]=rc(from,size);
+      let previousDir=null;
+
+      if(stack.length>=2 && stack[stack.length-1]===from){
+        const prev=stack[stack.length-2];
+        const [pr,pc]=rc(prev,size);
+
+        previousDir=DIRS.find(d=>pr+d.dr===fr&&pc+d.dc===fc) || null;
+      }
+
+      let d;
+      if(previousDir && Math.random()<0.72){
+        const turning=options.filter(o=>
+          !(
+            (o.bit===N&&previousDir.bit===N) ||
+            (o.bit===E&&previousDir.bit===E) ||
+            (o.bit===S&&previousDir.bit===S) ||
+            (o.bit===W&&previousDir.bit===W)
+          )
+        );
+        d=(turning.length?turning:options)[Math.floor(Math.random()*(turning.length?turning.length:options.length))];
+      }else{
+        d=options[Math.floor(Math.random()*options.length)];
+      }
+
+      const to=idx(fr+d.dr,fc+d.dc,size);
+
+      cells[from].solvedMask|=d.bit;
+      cells[to].solvedMask|=d.opposite;
+
+      visited.add(to);
+      stack.push(to);
+    }
+
+    // Add a few carefully chosen extra links to create convincing
+    // alternate-looking routes and T-junctions, but not so many that the
+    // puzzle becomes a dense mesh.
+    const candidates=[];
+
+    for(let r=0;r<size;r++){
+      for(let c=0;c<size;c++){
+        const a=idx(r,c,size);
+
+        for(const d of [DIRS[1],DIRS[2]]){ // E and S once each
+          const nr=r+d.dr;
+          const nc=c+d.dc;
+          if(nr<0||nr>=size||nc<0||nc>=size) continue;
+
+          const b=idx(nr,nc,size);
+          if(cells[a].solvedMask&d.bit) continue;
+
+          candidates.push({a,b,d});
+        }
+      }
+    }
+
+    const extrasWanted=rounds[stage].extraLinks;
+    let added=0;
+
+    for(const edge of shuffled(candidates)){
+      if(added>=extrasWanted) break;
+
+      const da=degree(cells[edge.a].solvedMask);
+      const db=degree(cells[edge.b].solvedMask);
+
+      // Prefer creating T pieces. Avoid excessive crosses.
+      if(da>=3||db>=3) continue;
+
+      cells[edge.a].solvedMask|=edge.d.bit;
+      cells[edge.b].solvedMask|=edge.d.opposite;
+      added++;
+    }
+
+    return cells;
+  }
+
+  function hasSolvedBox(cells,size){
+    // A forbidden box is a 2×2 perimeter loop:
+    //
+    // A──B
+    // │  │
+    // C──D
+    //
+    // Extra branches do not make the square itself valid; if all four
+    // perimeter links exist, it is still considered a box.
+    for(let r=0;r<size-1;r++){
+      for(let c=0;c<size-1;c++){
+        const a=idx(r,c,size);
+        const b=idx(r,c+1,size);
+        const cc=idx(r+1,c,size);
+        const d=idx(r+1,c+1,size);
+
+        const top=
+          (cells[a].solvedMask&E) &&
+          (cells[b].solvedMask&W);
+
+        const left=
+          (cells[a].solvedMask&S) &&
+          (cells[cc].solvedMask&N);
+
+        const right=
+          (cells[b].solvedMask&S) &&
+          (cells[d].solvedMask&N);
+
+        const bottom=
+          (cells[cc].solvedMask&E) &&
+          (cells[d].solvedMask&W);
+
+        if(top&&left&&right&&bottom){
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  function validateSolvedNetwork(cells,size){
+    if(!cells.length) return false;
+    if(hasSolvedBox(cells,size)) return false;
+
+    // Every tile must belong to the network.
+    // Degree-1 cells are legitimate terminal/computer endpoints.
+    if(cells.some(c=>degree(c.solvedMask)<1)) return false;
+
+    // No solved cable may point off the board or into a neighbor
+    // that does not reciprocate.
+    for(let i=0;i<cells.length;i++){
+      const [r,c]=rc(i,size);
+
+      for(const d of DIRS){
+        if(!(cells[i].solvedMask&d.bit)) continue;
+
+        const nr=r+d.dr;
+        const nc=c+d.dc;
+        if(nr<0||nr>=size||nc<0||nc>=size) return false;
+
+        const ni=idx(nr,nc,size);
+        if(!(cells[ni].solvedMask&d.opposite)) return false;
+      }
+    }
+
+    // Entire solved network must be reachable from server.
+    const seen=new Set([serverIndex]);
+    const queue=[serverIndex];
+
+    while(queue.length){
+      const cur=queue.shift();
+      const [r,c]=rc(cur,size);
+      const mask=cells[cur].solvedMask;
+
+      for(const d of DIRS){
+        if(!(mask&d.bit)) continue;
+        const ni=idx(r+d.dr,c+d.dc,size);
+        if(!seen.has(ni)){
+          seen.add(ni);
+          queue.push(ni);
+        }
+      }
+    }
+
+    return seen.size===cells.length;
+  }
+
+  function generateSolved(size){
+    const requirements=rounds[stage];
+
+    for(let attempt=0;attempt<850;attempt++){
+      const cells=createNetwork(size);
+      if(!validateSolvedNetwork(cells,size)) continue;
+
+      let leaves=0;
+      let corners=0;
+      let straights=0;
+      let junctions=0;
+      let crosses=0;
+
+      for(const cell of cells){
+        const mask=cell.solvedMask;
+        const d=degree(mask);
+
+        if(d===1) leaves++;
+        if(d===3) junctions++;
+        if(d===4) crosses++;
+
+        if(d===2){
+          const straight=
+            ((mask&N)&&(mask&S)) ||
+            ((mask&E)&&(mask&W));
+
+          if(straight) straights++;
+          else corners++;
+        }
+      }
+
+      const serverDegree=degree(cells[serverIndex].solvedMask);
+      const bendAdvantage =
+        stage < 4 ? corners >= straights :
+        corners >= Math.floor(straights*.85);
+
+      if(
+        corners>=requirements.minCorners &&
+        junctions>=requirements.minJunctions &&
+        leaves>=requirements.minLeaves &&
+        leaves<=requirements.maxLeaves &&
+        crosses<=requirements.maxCrosses &&
+        bendAdvantage &&
+        serverDegree>=2
+      ){
+        return cells;
+      }
+    }
+
+    let cells;
+    do{
+      cells=createNetwork(size);
+    }while(!validateSolvedNetwork(cells,size));
+
+    return cells;
+  }
+
+  function scramble(){
+    let wrongCount=0;
+
+    for(let i=0;i<grid.length;i++){
+      const cell=grid[i];
+
+      if(i===serverIndex){
+        cell.rotation=0;
+        cell.visualTurns=0;
+        continue;
+      }
+
+      const all=[0,1,2,3];
+      const wrongOptions=all.filter(r=>
+        maskAtRotation(cell.solvedMask,r)!==cell.solvedMask
+      );
+
+      let chosen;
+
+      // Most pieces begin in an actually incorrect orientation.
+      // Symmetric pieces (like crosses) may of course look identical.
+      if(wrongOptions.length && Math.random()<Math.min(.99,rounds[stage].wrongRatio+.03)){
+        chosen=wrongOptions[Math.floor(Math.random()*wrongOptions.length)];
+      }else{
+        chosen=all[Math.floor(Math.random()*all.length)];
+      }
+
+      cell.rotation=chosen;
+      cell.visualTurns=chosen;
+
+      if(maskAtRotation(cell.solvedMask,chosen)!==cell.solvedMask){
+        wrongCount++;
+      }
+    }
+
+    // Make sure the opening state is never suspiciously close to solved.
+    const targetWrong=Math.floor((grid.length-1)*rounds[stage].wrongRatio);
+
+    if(wrongCount<targetWrong){
+      const candidates=shuffled(
+        grid.map((cell,i)=>({cell,i}))
+          .filter(x=>x.i!==serverIndex)
+      );
+
+      for(const {cell} of candidates){
+        if(wrongCount>=targetWrong) break;
+
+        if(maskAtRotation(cell.solvedMask,cell.rotation)!==cell.solvedMask){
+          continue;
+        }
+
+        const wrongOptions=[0,1,2,3].filter(r=>
+          maskAtRotation(cell.solvedMask,r)!==cell.solvedMask
+        );
+
+        if(!wrongOptions.length) continue;
+
+        const chosen=wrongOptions[Math.floor(Math.random()*wrongOptions.length)];
+        cell.rotation=chosen;
+        cell.visualTurns=chosen;
+        wrongCount++;
+      }
+    }
+  }
+
+  function renderTile(cell,index){
+    const tile=document.createElement("button");
+    tile.type="button";
+    tile.className="tile";
+    tile.setAttribute(
+      "aria-label",
+      index===serverIndex ? "Central server" : "Network tile"
+    );
+
+    if(index===serverIndex){
+      tile.classList.add("server");
+      tile.disabled=true;
+    }
+
+    const cable=document.createElement("div");
+    cable.className="cable-layer";
+    cable.style.setProperty("--rotation",`${cell.visualTurns*90}deg`);
+
+    // Draw ONLY the exact solved cable shape, then rotate the entire shape.
+    for(const d of DIRS){
+      if(cell.solvedMask&d.bit){
+        const wire=document.createElement("span");
+        wire.className=`wire ${d.cls}`;
+        cable.appendChild(wire);
+      }
+    }
+
+    const hub=document.createElement("span");
+    hub.className="hub";
+    cable.appendChild(hub);
+    tile.appendChild(cable);
+
+    if(index===serverIndex){
+      const core=document.createElement("span");
+      core.className="server-core";
+      tile.appendChild(core);
+    }else if(degree(cell.solvedMask)===1){
+      const terminal=document.createElement("span");
+      terminal.className="terminal";
+      tile.appendChild(terminal);
+    }
+
+    tile.addEventListener("pointerdown",e=>{
+      e.preventDefault();
+      rotateTile(index);
+    });
+
+    cell.element=tile;
+    return tile;
+  }
+
+  function renderBoard(){
+    const size=sizes[stage];
+    board.innerHTML="";
+    board.style.gridTemplateColumns=`repeat(${size},1fr)`;
+    board.style.gridTemplateRows=`repeat(${size},1fr)`;
+
+    grid.forEach((cell,i)=>{
+      board.appendChild(renderTile(cell,i));
+    });
+
+    updateState(false);
+  }
+
+  function getConnectedSet(){
+    const size=sizes[stage];
+    const connected=new Set([serverIndex]);
+    const queue=[serverIndex];
+
+    // Electricity follows whatever cables are physically connected RIGHT NOW.
+    // A tile does not need to be in its hidden solved orientation to light up.
+    while(queue.length){
+      const cur=queue.shift();
+      const [r,c]=rc(cur,size);
+      const mask=currentMask(grid[cur]);
+
+      for(const d of DIRS){
+        if(!(mask&d.bit)) continue;
+
+        const nr=r+d.dr;
+        const nc=c+d.dc;
+        if(nr<0||nr>=size||nc<0||nc>=size) continue;
+
+        const ni=idx(nr,nc,size);
+        if(connected.has(ni)) continue;
+
+        const neighborMask=currentMask(grid[ni]);
+
+        // Both neighboring cable ends must actually face each other.
+        if(!(neighborMask&d.opposite)) continue;
+
+        connected.add(ni);
+        queue.push(ni);
+      }
+    }
+
+    return connected;
+  }
+
+  function hasNoLooseEnds(){
+    const size=sizes[stage];
+
+    for(let i=0;i<grid.length;i++){
+      const [r,c]=rc(i,size);
+      const mask=currentMask(grid[i]);
+
+      for(const d of DIRS){
+        if(!(mask&d.bit)) continue;
+
+        const nr=r+d.dr;
+        const nc=c+d.dc;
+
+        // No cable may point off the board.
+        if(nr<0||nr>=size||nc<0||nc>=size){
+          return false;
+        }
+
+        const ni=idx(nr,nc,size);
+        const neighborMask=currentMask(grid[ni]);
+
+        // Every visible cable end must meet a reciprocal cable end.
+        if(!(neighborMask&d.opposite)){
+          return false;
+        }
+      }
+    }
+
+    return true;
+  }
+
+  function isNetworkComplete(){
+    const connected=getConnectedSet();
+    const boxErrors=getBoxErrorTiles();
+
+    return (
+      connected.size===grid.length &&
+      hasNoLooseEnds() &&
+      boxErrors.size===0
+    );
+  }
+
+  function getBoxErrorTiles(){
+    const size=sizes[stage];
+    const errors=new Set();
+
+    for(let r=0;r<size-1;r++){
+      for(let c=0;c<size-1;c++){
+        const a=idx(r,c,size);
+        const b=idx(r,c+1,size);
+        const cc=idx(r+1,c,size);
+        const d=idx(r+1,c+1,size);
+
+        const ma=currentMask(grid[a]);
+        const mb=currentMask(grid[b]);
+        const mc=currentMask(grid[cc]);
+        const md=currentMask(grid[d]);
+
+        const top=(ma&E)&&(mb&W);
+        const left=(ma&S)&&(mc&N);
+        const right=(mb&S)&&(md&N);
+        const bottom=(mc&E)&&(md&W);
+
+        if(top&&left&&right&&bottom){
+          errors.add(a);
+          errors.add(b);
+          errors.add(cc);
+          errors.add(d);
+        }
+      }
+    }
+
+    return errors;
+  }
+
+  function updateState(pulseNew=false){
+    const connected=getConnectedSet();
+    const boxErrors=getBoxErrorTiles();
+
+    grid.forEach((cell,i)=>{
+      const wasConnected=cell.connected;
+      const nowConnected=connected.has(i);
+
+      cell.connected=nowConnected;
+
+      if(!cell.element) return;
+
+      cell.element.classList.toggle("connected",nowConnected);
+      cell.element.classList.toggle("box-error",boxErrors.has(i));
+
+      if(pulseNew && nowConnected && !wasConnected){
+        cell.element.classList.remove("pulse");
+        void cell.element.offsetWidth;
+        cell.element.classList.add("pulse");
+      }
+    });
+
+    return connected.size;
+  }
+
+  function rotateTile(index){
+    if(locked || index===serverIndex) return;
+
+    const cell=grid[index];
+
+    // Logic wraps every four turns, but the visual angle never resets.
+    // So 270° always becomes 360°, then 450°, etc. — never a reverse spin.
+    cell.rotation=(cell.rotation+1)%4;
+    cell.visualTurns++;
+    totalRotations++;
+
+    const cable=cell.element.querySelector(".cable-layer");
+    cable.style.setProperty("--rotation",`${cell.visualTurns*90}deg`);
+
+    updateState(true);
+
+    // Glowing only means current can reach that tile.
+    // A round ends ONLY when every tile is in one connected network
+    // and every single cable end is matched — no open stubs anywhere.
+    if(isNetworkComplete()){
+      finishStage();
+    }
+  }
+
+  function beginStage(){
+    locked=true;
+
+    const size=sizes[stage];
+    networkLabel.textContent=`${stage+1} / ${rounds.length}`;
+
+    grid=generateSolved(size);
+    scramble();
+    renderBoard();
+
+    transitionCard.classList.remove("show");
+
+    requestAnimationFrame(()=>{
+      locked=false;
+      startRoundTimer();
+    });
+  }
+
+  function finishStage(){
+    if(locked) return;
+    locked=true;
+
+    pauseRoundTimer();
+
+    transitionBig.textContent="NETWORK CLEARED";
+    transitionCard.classList.add("show");
+
+    if(stage<rounds.length-1){
+      setTimeout(()=>{
+        stage++;
+        beginStage();
+      },850);
+    }else{
+      setTimeout(showResults,850);
+    }
+  }
+
+  function showResults(){
+    timerRunning=false;
+
+    if(timerFrame){
+      cancelAnimationFrame(timerFrame);
+      timerFrame=null;
+    }
+
+    drawTimerCanvas(totalTimeResult,formatTime(accumulatedMs),true);
+    showScreen(endScreen);
+  }
+
+  function startGame(){
+    stage=0;
+    grid=[];
+    accumulatedMs=0;
+    totalRotations=0;
+    locked=false;
+    timerRunning=false;
+
+    if(timerFrame){
+      cancelAnimationFrame(timerFrame);
+      timerFrame=null;
+    }
+
+    drawTimerCanvas(liveTimer,"00:00.00",false);
+    transitionCard.classList.remove("show");
+
+    showScreen(gameScreen);
+    beginStage();
+  }
+
+  startBtn.addEventListener("click",startGame);
+  restartBtn.addEventListener("click",startGame);
+
+  // Casual deterrents only. DevTools itself cannot be securely disabled
+  // by code running in the same browser.
+  document.addEventListener("contextmenu",event=>{
+    event.preventDefault();
+  });
+
+  document.addEventListener("dragstart",event=>{
+    event.preventDefault();
+  });
+
+  drawTimerCanvas(liveTimer,"00:00.00",false);
+})();
+</script>
+</body>
+</html>
