@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<title>MUSCLE</title>
+<style>
+  :root{
+    --bg:#080808;
+    --panel:#0d0d0d;
+    --tile:#121212;
+    --tile2:#171717;
+    --text:#f0eadc;
+    --muted:#817b72;
+    --dim:#3a3834;
+    --line:#5d5952;
+    --live:#f5efe2;
+    --red:#a01d1d;
+    --red-bright:#c52828;
+    --border:#292722;
+  }
+
+  *{
+    box-sizing:border-box;
+    -webkit-tap-highlight-color:transparent;
+  }
+
+  html,body{
+    margin:0;
+    min-height:100%;
+    background:var(--bg);
+    color:var(--text);
+    font-family:"Courier New",Courier,monospace;
+  }
+
+  body{
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:18px;
+    overflow:auto;
+    background:
+      radial-gradient(circle at 50% 35%,rgba(255,255,255,.022),transparent 38%),
+      linear-gradient(#090909,#050505);
+    -webkit-user-select:none;
+    user-select:none;
+  }
+
+  button{font:inherit}
+
+  .timer-canvas{
+    display:block;
+    max-width:100%;
+    height:auto;
+    pointer-events:none;
+  }
+
+  .live-timer-canvas{
+    width:150px;
+    height:32px;
+  }
+
+  .final-timer-canvas{
+    width:min(360px,82vw);
+    height:auto;
+    margin:0 auto;
+  }
+
+  .screen{
+    display:none;
+    width:min(760px,96vw);
+    height:min(760px,92vh);
+    min-height:560px;
+    overflow:hidden;
+    border:1px solid #24221f;
+    background:#080808;
+  }
+
+  .screen.active{display:flex}
+
+  /* START */
+  #startScreen{
+    align-items:center;
+    justify-content:center;
+    flex-direction:column;
+    gap:28px;
+    padding:24px;
+  }
+
+  .title{
+    margin:0;
+    font-size:clamp(52px,11vw,112px);
+    line-height:.9;
+    letter-spacing:.12em;
+    text-indent:.12em;
+    font-weight:900;
+    text-shadow:0 3px 0 #000;
+  }
+
+  .rule{
+    width:min(360px,70vw);
+    height:1px;
+    background:linear-gradient(90deg,transparent,var(--muted),transparent);
+  }
+
+  .primary{
+    min-width:180px;
+    min-height:56px;
+    padding:14px 34px;
+    border:1px solid #48433b;
+    background:var(--text);
+    color:#0b0b0b;
+    font-weight:900;
+    font-size:18px;
+    letter-spacing:.14em;
+    cursor:pointer;
+    transition:transform .08s ease,background .12s ease;
+  }
+
+  .primary:active{
+    transform:translateY(2px);
+    background:#d7cfbf;
+  }
+
+  /* GAME */
+  #gameScreen{
+    flex-direction:column;
+    position:relative;
+  }
+
+  .topbar{
+    flex:none;
+    height:54px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:16px;
+    padding:0 18px;
+    border-bottom:1px solid var(--border);
+    background:#090909;
+    color:var(--muted);
+    font-size:14px;
+    letter-spacing:.08em;
+    z-index:20;
+  }
+
+  .topbar strong{
+    color:var(--text);
+    font-size:15px;
+  }
+
+  .top-left{
+    display:flex;
+    align-items:center;
+    gap:20px;
+    min-width:0;
+    white-space:nowrap;
+  }
+
+  .game-area{
+    position:relative;
+    flex:1 1 auto;
+    min-height:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:28px;
+    overflow:hidden;
+    background:
+      linear-gradient(rgba(255,255,255,.014) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(255,255,255,.014) 1px,transparent 1px),
+      #070707;
+    background-size:26px 26px;
+  }
+
+  .crate-field{
+    position:absolute;
+    inset:18px 20px 20px;
+    overflow:hidden;
+  }
+
+  .crate{
+    position:absolute;
+    width:clamp(58px,10vw,78px);
+    aspect-ratio:1.14;
+    overflow:hidden;
+    border:1px solid #4b463e;
+    background:
+      linear-gradient(45deg,transparent 47%,rgba(240,234,220,.025) 48% 52%,transparent 53%),
+      linear-gradient(-45deg,transparent 47%,rgba(240,234,220,.018) 48% 52%,transparent 53%),
+      linear-gradient(145deg,rgba(255,255,255,.025),transparent 38%),
+      #11100f;
+    box-shadow:
+      inset 0 0 0 3px #0b0b0b,
+      inset 0 0 0 4px #34312c;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    transform:translate(-50%,-50%);
+    transition:border-color .08s ease,background .08s ease,opacity .13s ease;
+  }
+
+  .crate::before,
+  .crate::after{
+    content:"";
+    position:absolute;
+    left:7px;
+    right:7px;
+    height:1px;
+    background:#2d2a26;
+    opacity:.8;
+  }
+
+  .crate::before{top:8px}
+  .crate::after{bottom:8px}
+
+  .crate .brace-a,
+  .crate .brace-b{
+    position:absolute;
+    left:50%;
+    top:50%;
+    width:118%;
+    height:1px;
+    background:#34302b;
+    opacity:.72;
+    transform-origin:center;
+    pointer-events:none;
+  }
+
+  .crate .brace-a{transform:translate(-50%,-50%) rotate(34deg)}
+  .crate .brace-b{transform:translate(-50%,-50%) rotate(-34deg)}
+
+  .crate-letter{
+    position:relative;
+    z-index:4;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    width:52%;
+    aspect-ratio:1;
+    border:1px solid #514d45;
+    background:#0d0d0d;
+    color:#fff8ea;
+    font-size:clamp(20px,3.8vw,34px);
+    line-height:1;
+    font-weight:900;
+    letter-spacing:.04em;
+    text-indent:.04em;
+    text-shadow:0 2px 0 #000,0 0 9px rgba(0,0,0,.9);
+    box-shadow:inset 0 0 10px rgba(245,239,226,.018);
+  }
+
+  .crate.flash{
+    border-color:#817a6e;
+    background:
+      linear-gradient(45deg,transparent 47%,rgba(240,234,220,.05) 48% 52%,transparent 53%),
+      linear-gradient(-45deg,transparent 47%,rgba(240,234,220,.035) 48% 52%,transparent 53%),
+      #151412;
+  }
+
+  .crate.flash .crate-letter{
+    border-color:#8c8579;
+    box-shadow:inset 0 0 14px rgba(245,239,226,.06);
+  }
+
+  .crack{
+    position:absolute;
+    z-index:5;
+    width:2px;
+    background:#b9b1a4;
+    opacity:0;
+    transform-origin:top center;
+    pointer-events:none;
+    box-shadow:0 0 2px rgba(245,239,226,.18);
+  }
+
+  .c1{left:46%;top:13%;height:33%;transform:rotate(18deg)}
+  .c2{left:58%;top:40%;height:30%;transform:rotate(-37deg)}
+  .c3{left:35%;top:45%;height:29%;transform:rotate(49deg)}
+  .c4{left:68%;top:21%;height:23%;transform:rotate(58deg)}
+  .c5{left:27%;top:27%;height:22%;transform:rotate(-54deg)}
+
+  .crate.damage-1 .c1{opacity:.62}
+  .crate.damage-2 .c1,.crate.damage-2 .c2{opacity:.68}
+  .crate.damage-3 .c1,.crate.damage-3 .c2,.crate.damage-3 .c3{opacity:.74}
+  .crate.damage-4 .c1,.crate.damage-4 .c2,.crate.damage-4 .c3,.crate.damage-4 .c4{opacity:.8}
+  .crate.damage-5 .crack{opacity:.88}
+
+  .crate.breaking{
+    animation:crateBreak .18s ease-in forwards;
+    border-color:#6a6257;
+  }
+
+  .crate.breaking .crate-letter{
+    animation:letterBreak .18s ease-in forwards;
+  }
+
+  @keyframes crateBreak{
+    0%{transform:translate(-50%,-50%) scale(1);opacity:1}
+    35%{transform:translate(-50%,-50%) scale(1.045) rotate(-1deg);opacity:1}
+    100%{transform:translate(-50%,-50%) scale(.76) rotate(2deg);opacity:0}
+  }
+
+  @keyframes letterBreak{
+    from{transform:scale(1)}
+    to{transform:scale(.72) rotate(-7deg)}
+  }
+
+  .feedback{
+    position:absolute;
+    left:50%;
+    bottom:15px;
+    transform:translateX(-50%);
+    z-index:30;
+    opacity:0;
+    pointer-events:none;
+    color:var(--red-bright);
+    font-size:12px;
+    font-weight:900;
+    letter-spacing:.13em;
+    text-shadow:0 2px 0 #000;
+    transition:opacity .08s ease;
+    white-space:nowrap;
+  }
+
+  .feedback.show{opacity:1}
+
+  .transition-card{
+    position:absolute;
+    inset:0;
+    z-index:40;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    flex-direction:column;
+    background:rgba(5,5,5,.92);
+    text-align:center;
+  }
+
+  .transition-card.show{display:flex}
+
+  .transition-card .big{
+    font-size:clamp(28px,6vw,54px);
+    font-weight:900;
+    letter-spacing:.1em;
+    text-indent:.1em;
+  }
+
+  .transition-card .small{
+    margin-top:10px;
+    color:var(--muted);
+    font-size:12px;
+    letter-spacing:.14em;
+  }
+
+  .shake{animation:shake .18s linear 1}
+  @keyframes shake{
+    0%{transform:translateX(0)}
+    25%{transform:translateX(-8px)}
+    50%{transform:translateX(7px)}
+    75%{transform:translateX(-4px)}
+    100%{transform:translateX(0)}
+  }
+
+  /* END */
+  #endScreen{
+    align-items:center;
+    justify-content:center;
+    flex-direction:column;
+    padding:28px 20px;
+  }
+
+  .end-wrap{
+    width:min(520px,100%);
+    text-align:center;
+  }
+
+  .end-title{
+    margin:0 0 30px;
+    font-size:clamp(38px,8vw,68px);
+    letter-spacing:.1em;
+    text-indent:.1em;
+    line-height:.95;
+  }
+
+  .results{
+    border-top:1px solid #3d3932;
+    border-bottom:1px solid #3d3932;
+    padding:18px 0;
+    margin-bottom:22px;
+  }
+
+  .result-row{
+    display:flex;
+    justify-content:space-between;
+    gap:20px;
+    padding:8px 4px;
+    color:var(--muted);
+    font-size:14px;
+    letter-spacing:.06em;
+  }
+
+  .result-row strong{
+    color:var(--text);
+    font-size:16px;
+  }
+
+  .final-time{margin:26px 0 32px}
+
+  .final-time .label{
+    display:block;
+    color:var(--muted);
+    font-size:13px;
+    letter-spacing:.16em;
+    margin-bottom:7px;
+  }
+
+  @media (max-width:600px){
+    body{padding:8px}
+
+    .screen{
+      width:100%;
+      height:calc(100vh - 16px);
+      min-height:520px;
+    }
+
+    .topbar{
+      height:48px;
+      padding:0 11px;
+      font-size:11px;
+      gap:9px;
+    }
+
+    .topbar strong{font-size:12px}
+    .top-left{gap:10px}
+    .live-timer-canvas{width:118px}
+
+    .game-area{padding:10px}
+
+    .crate-field{inset:10px}
+    .crate{width:clamp(52px,16vw,66px)}
+    .crate-letter{font-size:clamp(19px,7vw,29px)}
+  }
+
+  @media (max-width:420px){
+    .title{font-size:44px}
+    .topbar{padding-left:8px;padding-right:8px}
+    .crate-field{inset:8px}
+    .crate{width:52px}
+  }
+
+  @media (prefers-reduced-motion:reduce){
+    .crate,
+    .crate-letter,
+    .primary,
+    .feedback{transition:none}
+
+    .crate.breaking,
+    .crate.breaking .crate-letter,
+    .shake{animation:none}
+  }
+</style>
+</head>
+<body>
+
+<section id="startScreen" class="screen active">
+  <h1 class="title">MUSCLE</h1>
+  <div class="rule"></div>
+  <button id="startBtn" class="primary" type="button">START</button>
+</section>
+
+<section id="gameScreen" class="screen">
+  <div class="topbar">
+    <span>ROUND <strong id="roundLabel">1</strong></span>
+    <canvas id="liveTimer" class="timer-canvas live-timer-canvas" width="300" height="64" aria-label="Elapsed time"></canvas>
+  </div>
+
+  <div id="gameArea" class="game-area">
+    <div id="crateField" class="crate-field" aria-label="Crates to break"></div>
+
+    <div id="feedback" class="feedback">WRONG KEY +1.00</div>
+
+    <div id="transitionCard" class="transition-card" aria-live="polite">
+      <div id="transitionBig" class="big">AREA CLEARED</div>
+      <div id="transitionSmall" class="small">NEXT WAVE</div>
+    </div>
+  </div>
+</section>
+
+<section id="endScreen" class="screen">
+  <div class="end-wrap">
+    <h2 class="end-title">PATH CLEARED</h2>
+
+    <div class="results">
+      <div class="result-row"><span>PENALTY</span><strong id="finalPenalty">+0.00</strong></div>
+    </div>
+
+    <div class="final-time">
+      <span class="label">FINAL TIME</span>
+      <canvas id="finalTimer" class="timer-canvas final-timer-canvas" width="720" height="160" aria-label="Final time"></canvas>
+    </div>
+
+    <button id="restartBtn" class="primary" type="button">RESTART</button>
+  </div>
+</section>
+
+<script>
+(() => {
+  const TOTAL_ROUNDS = 30;
+  const WRONG_PENALTY_MS = 1000;
+  const ROUND_TRANSITION_MS = 330;
+  const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+
+  const startScreen = document.getElementById("startScreen");
+  const gameScreen = document.getElementById("gameScreen");
+  const endScreen = document.getElementById("endScreen");
+  const startBtn = document.getElementById("startBtn");
+  const restartBtn = document.getElementById("restartBtn");
+  const roundLabel = document.getElementById("roundLabel");
+  const liveTimer = document.getElementById("liveTimer");
+  const finalTimer = document.getElementById("finalTimer");
+  const crateField = document.getElementById("crateField");
+  const gameArea = document.getElementById("gameArea");
+  const feedback = document.getElementById("feedback");
+  const transitionCard = document.getElementById("transitionCard");
+  const transitionBig = document.getElementById("transitionBig");
+  const transitionSmall = document.getElementById("transitionSmall");
+  const finalPenalty = document.getElementById("finalPenalty");
+
+  let round = 1;
+  let activeCrates = new Map();
+  let mistakes = 0;
+  let penaltyMs = 0;
+  let elapsedBeforePause = 0;
+  let startedAt = 0;
+  let timerRunning = false;
+  let timerFrame = null;
+  let locked = true;
+  let transitionTimer = null;
+  let feedbackTimer = null;
+
+  function showScreen(screen){
+    [startScreen,gameScreen,endScreen].forEach(s => s.classList.remove("active"));
+    screen.classList.add("active");
+  }
+
+  function formatTime(ms){
+    const totalHundredths = Math.max(0,Math.floor(ms/10));
+    const minutes = Math.floor(totalHundredths/6000);
+    const seconds = Math.floor((totalHundredths%6000)/100);
+    const hundredths = totalHundredths%100;
+    return String(minutes).padStart(2,"0") + ":" +
+           String(seconds).padStart(2,"0") + "." +
+           String(hundredths).padStart(2,"0");
+  }
+
+  function drawTimerCanvas(canvas,text,large=false){
+    const ctx = canvas.getContext("2d");
+    const w = canvas.width;
+    const h = canvas.height;
+    ctx.clearRect(0,0,w,h);
+
+    // The timer is painted directly into canvas bitmap pixels.
+    // It is never stored as visible/selectable DOM text.
+    ctx.fillStyle = "#f0eadc";
+    ctx.textAlign = large ? "center" : "right";
+    ctx.textBaseline = "middle";
+    ctx.font = large
+      ? '900 96px "Courier New", monospace'
+      : '900 34px "Courier New", monospace';
+    ctx.shadowColor = "rgba(0,0,0,.95)";
+    ctx.shadowBlur = 8;
+    ctx.shadowOffsetY = 3;
+    ctx.fillText(text,large ? w/2 : w-8,h/2);
+  }
+
+  function currentElapsed(){
+    const active = elapsedBeforePause + (timerRunning ? performance.now()-startedAt : 0);
+    return active + penaltyMs;
+  }
+
+  function updateTimer(){
+    if(!timerRunning){
+      timerFrame = null;
+      return;
+    }
+    drawTimerCanvas(liveTimer,formatTime(currentElapsed()),false);
+    timerFrame = requestAnimationFrame(updateTimer);
+  }
+
+  function startTimer(){
+    if(timerRunning) return;
+    timerRunning = true;
+    startedAt = performance.now();
+    if(!timerFrame) timerFrame = requestAnimationFrame(updateTimer);
+  }
+
+  function pauseTimer(){
+    if(!timerRunning) return;
+    elapsedBeforePause += performance.now()-startedAt;
+    timerRunning = false;
+    if(timerFrame){
+      cancelAnimationFrame(timerFrame);
+      timerFrame = null;
+    }
+    drawTimerCanvas(liveTimer,formatTime(currentElapsed()),false);
+  }
+
+  function shuffle(array){
+    const copy = [...array];
+    for(let i=copy.length-1;i>0;i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [copy[i],copy[j]] = [copy[j],copy[i]];
+    }
+    return copy;
+  }
+
+  function crateCountForRound(r){
+    // Starts busy at five crates and grows steadily to fourteen by round 30.
+    return 5 + Math.floor(((r-1) * 9) / (TOTAL_ROUNDS-1));
+  }
+
+  function hpRangeForRound(r){
+    if(r<=5) return [1,1];
+    if(r<=10) return [1,2];
+    if(r<=15) return [1,3];
+    if(r<=20) return [2,3];
+    if(r<=25) return [2,4];
+    return [3,5];
+  }
+
+  function randomInt(min,max){
+    return min + Math.floor(Math.random()*(max-min+1));
+  }
+
+  function randomCratePositions(count){
+    const rect = crateField.getBoundingClientRect();
+    const width = Math.max(260,rect.width || 600);
+    const height = Math.max(320,rect.height || 500);
+    const crateSize = width <= 360 ? 54 : width <= 520 ? 64 : 76;
+    const gap = width <= 360 ? 7 : 11;
+    const padX = crateSize/2 + 5;
+    const padY = crateSize/2 + 5;
+    const positions = [];
+
+    for(let i=0;i<count;i++){
+      let placed = false;
+      for(let attempt=0;attempt<450;attempt++){
+        const x = padX + Math.random() * Math.max(1,width-padX*2);
+        const y = padY + Math.random() * Math.max(1,height-padY*2);
+        const clear = positions.every(p =>
+          Math.abs(p.x-x) >= crateSize+gap ||
+          Math.abs(p.y-y) >= crateSize+gap
+        );
+        if(clear){
+          positions.push({x,y});
+          placed = true;
+          break;
+        }
+      }
+
+      if(!placed){
+        // Dense-screen fallback: randomized cells, still visually irregular.
+        const cols = 4;
+        const rows = Math.ceil(count/cols);
+        const cellW = width/cols;
+        const cellH = height/rows;
+        const cell = i;
+        const col = cell % cols;
+        const row = Math.floor(cell/cols);
+        positions.push({
+          x:(col+.5)*cellW + (Math.random()-.5)*Math.min(16,cellW*.16),
+          y:(row+.5)*cellH + (Math.random()-.5)*Math.min(16,cellH*.16)
+        });
+      }
+    }
+
+    return positions.map(p=>({
+      left:`${(p.x/width)*100}%`,
+      top:`${(p.y/height)*100}%`
+    }));
+  }
+
+  function makeCrate(letter,maxHp){
+    const crate = document.createElement("div");
+    crate.className = "crate";
+    crate.dataset.letter = letter;
+    crate.setAttribute("aria-label",`${letter} crate`);
+
+    const braceA = document.createElement("span");
+    braceA.className = "brace-a";
+    const braceB = document.createElement("span");
+    braceB.className = "brace-b";
+
+    const label = document.createElement("div");
+    label.className = "crate-letter";
+    label.textContent = letter;
+
+    const cracks = [];
+    for(let i=1;i<=5;i++){
+      const crack = document.createElement("span");
+      crack.className = `crack c${i}`;
+      cracks.push(crack);
+    }
+
+    crate.append(braceA,braceB,label,...cracks);
+    return {
+      letter,
+      maxHp,
+      hp:maxHp,
+      hits:0,
+      element:crate
+    };
+  }
+
+  function setDamageVisual(state){
+    const el = state.element;
+    el.classList.remove("damage-1","damage-2","damage-3","damage-4","damage-5");
+    if(state.hits<=0) return;
+
+    const damageFraction = state.hits / state.maxHp;
+    const level = Math.min(5,Math.max(1,Math.ceil(damageFraction*5)));
+    el.classList.add(`damage-${level}`);
+  }
+
+  function renderRound(){
+    activeCrates.clear();
+    crateField.innerHTML = "";
+    roundLabel.textContent = String(round);
+
+    const count = crateCountForRound(round);
+    const positions = randomCratePositions(count);
+    const roundLetters = shuffle(LETTERS).slice(0,count);
+    const [minHp,maxHp] = hpRangeForRound(round);
+
+    roundLetters.forEach((letter,index) => {
+      let hp = randomInt(minHp,maxHp);
+
+      // Ensure new durability tiers actually appear instead of being left to chance.
+      if(round>5 && index===0) hp = maxHp;
+      if(round>15 && index===1) hp = Math.max(minHp,maxHp-1);
+
+      const state = makeCrate(letter,hp);
+      state.element.style.left = positions[index].left;
+      state.element.style.top = positions[index].top;
+      activeCrates.set(letter,state);
+      crateField.appendChild(state.element);
+    });
+
+    locked = false;
+    startTimer();
+  }
+
+  function showWrongKey(){
+    mistakes++;
+    penaltyMs += WRONG_PENALTY_MS;
+    drawTimerCanvas(liveTimer,formatTime(currentElapsed()),false);
+
+    feedback.textContent = `WRONG KEY +${(WRONG_PENALTY_MS/1000).toFixed(2)}`;
+    feedback.classList.remove("show");
+    void feedback.offsetWidth;
+    feedback.classList.add("show");
+
+    gameArea.classList.remove("shake");
+    void gameArea.offsetWidth;
+    gameArea.classList.add("shake");
+
+    if(feedbackTimer) clearTimeout(feedbackTimer);
+    feedbackTimer = setTimeout(() => feedback.classList.remove("show"),520);
+  }
+
+  function hitCrate(state){
+    if(!state || locked) return;
+
+    state.hp--;
+    state.hits++;
+    setDamageVisual(state);
+
+    state.element.classList.remove("flash");
+    void state.element.offsetWidth;
+    state.element.classList.add("flash");
+    setTimeout(() => state.element.classList.remove("flash"),90);
+
+    if(state.hp>0) return;
+
+    // Remove the key from the active set immediately: pressing it again now is wrong.
+    activeCrates.delete(state.letter);
+    state.element.classList.add("breaking");
+    setTimeout(() => state.element.remove(),180);
+
+    if(activeCrates.size===0){
+      completeRound();
+    }
+  }
+
+  function completeRound(){
+    if(locked) return;
+    locked = true;
+    pauseTimer();
+
+    if(round>=TOTAL_ROUNDS){
+      setTimeout(finishGame,190);
+      return;
+    }
+
+    transitionBig.textContent = "AREA CLEARED";
+    transitionSmall.textContent = `ROUND ${round+1} READY`;
+    transitionCard.classList.add("show");
+
+    if(transitionTimer) clearTimeout(transitionTimer);
+    transitionTimer = setTimeout(() => {
+      round++;
+      renderRound();
+      transitionCard.classList.remove("show");
+    },ROUND_TRANSITION_MS);
+  }
+
+  function finishGame(){
+    locked = true;
+    pauseTimer();
+    const total = elapsedBeforePause + penaltyMs;
+
+    finalPenalty.textContent = `+${(penaltyMs/1000).toFixed(2)} SEC`;
+    drawTimerCanvas(finalTimer,formatTime(total),true);
+    showScreen(endScreen);
+  }
+
+  function clearScheduled(){
+    if(transitionTimer){
+      clearTimeout(transitionTimer);
+      transitionTimer = null;
+    }
+    if(feedbackTimer){
+      clearTimeout(feedbackTimer);
+      feedbackTimer = null;
+    }
+    if(timerFrame){
+      cancelAnimationFrame(timerFrame);
+      timerFrame = null;
+    }
+  }
+
+  function startGame(){
+    clearScheduled();
+    round = 1;
+    activeCrates.clear();
+    mistakes = 0;
+    penaltyMs = 0;
+    elapsedBeforePause = 0;
+    startedAt = 0;
+    timerRunning = false;
+    locked = true;
+
+    roundLabel.textContent = "1";
+    feedback.classList.remove("show");
+    transitionCard.classList.remove("show");
+    crateField.innerHTML = "";
+    drawTimerCanvas(liveTimer,"00:00.00",false);
+
+    showScreen(gameScreen);
+    renderRound();
+  }
+
+  function handleKeydown(event){
+    if(!gameScreen.classList.contains("active") || locked) return;
+    if(event.repeat) return;
+    if(event.ctrlKey || event.metaKey || event.altKey) return;
+
+    const key = event.key.toUpperCase();
+    if(!/^[A-Z]$/.test(key)) return;
+
+    event.preventDefault();
+    const state = activeCrates.get(key);
+    if(!state){
+      showWrongKey();
+      return;
+    }
+
+    hitCrate(state);
+  }
+
+  startBtn.addEventListener("click",startGame);
+  restartBtn.addEventListener("click",startGame);
+  document.addEventListener("keydown",handleKeydown);
+  document.addEventListener("contextmenu",event => event.preventDefault());
+  document.addEventListener("dragstart",event => event.preventDefault());
+
+  drawTimerCanvas(liveTimer,"00:00.00",false);
+  drawTimerCanvas(finalTimer,"00:00.00",true);
+})();
+</script>
+</body>
+</html>
