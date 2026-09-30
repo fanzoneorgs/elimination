@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<title>LOOKOUT</title>
+<style>
+  :root{
+    --bg:#080808;
+    --panel:#0d0d0d;
+    --text:#f0eadc;
+    --muted:#817b72;
+    --red:#a01d1d;
+    --red-bright:#c52828;
+    --border:#292722;
+  }
+
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{
+    margin:0;
+    min-height:100%;
+    background:var(--bg);
+    color:var(--text);
+    font-family:"Courier New",Courier,monospace;
+  }
+  body{
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:18px;
+    overflow:auto;
+    background:
+      radial-gradient(circle at 50% 35%,rgba(255,255,255,.022),transparent 38%),
+      linear-gradient(#090909,#050505);
+    -webkit-user-select:none;
+    user-select:none;
+  }
+  button{font:inherit}
+
+  .timer-canvas{display:block;max-width:100%;height:auto;pointer-events:none}
+  .final-timer-canvas{width:min(360px,82vw);height:auto;margin:0 auto}
+
+  .screen{
+    display:none;
+    width:min(760px,96vw);
+    height:min(760px,92vh);
+    min-height:560px;
+    overflow:hidden;
+    border:1px solid #24221f;
+    background:#080808;
+  }
+  .screen.active{display:flex}
+
+  #startScreen{
+    align-items:center;
+    justify-content:center;
+    flex-direction:column;
+    gap:28px;
+    padding:24px;
+  }
+  .title{
+    margin:0;
+    font-size:clamp(48px,10.5vw,104px);
+    line-height:.9;
+    letter-spacing:.12em;
+    text-indent:.12em;
+    font-weight:900;
+    text-shadow:0 3px 0 #000;
+  }
+  .rule{
+    width:min(360px,70vw);
+    height:1px;
+    background:linear-gradient(90deg,transparent,var(--muted),transparent);
+  }
+  .primary{
+    min-width:180px;
+    min-height:56px;
+    padding:14px 34px;
+    border:1px solid #48433b;
+    background:var(--text);
+    color:#0b0b0b;
+    font-weight:900;
+    font-size:18px;
+    letter-spacing:.14em;
+    cursor:pointer;
+    transition:transform .08s ease,background .12s ease;
+  }
+  .primary:active{transform:translateY(2px);background:#d7cfbf}
+
+  #gameScreen{flex-direction:column;position:relative}
+  .topbar{
+    flex:none;
+    height:54px;
+    display:flex;
+    align-items:center;
+    justify-content:flex-end;
+    gap:16px;
+    padding:0 18px;
+    border-bottom:1px solid var(--border);
+    background:#090909;
+    color:var(--muted);
+    font-size:14px;
+    letter-spacing:.08em;
+    z-index:20;
+  }
+  .topbar strong{color:var(--text);font-size:15px}
+
+  .game-area{
+    position:relative;
+    flex:1 1 auto;
+    min-height:0;
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+    background:#070707;
+  }
+
+  .command-wrap{
+    flex:none;
+    min-height:88px;
+    padding:15px 18px 12px;
+    border-bottom:1px solid #24221f;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    background:
+      linear-gradient(rgba(255,255,255,.012) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(255,255,255,.012) 1px,transparent 1px),
+      #090909;
+    background-size:24px 24px;
+  }
+  .command{
+    color:#fff8ea;
+    font-size:clamp(21px,4vw,36px);
+    line-height:1.02;
+    font-weight:900;
+    letter-spacing:.075em;
+    text-transform:uppercase;
+    text-shadow:0 3px 0 #000,0 0 14px rgba(0,0,0,.9);
+  }
+  .command.wrong{
+    text-shadow:2px 0 0 var(--red-bright),-2px 0 0 var(--red-bright),0 3px 0 #000;
+  }
+
+  .scene-wrap{
+    position:relative;
+    flex:1 1 auto;
+    min-height:0;
+    padding:12px;
+    overflow:hidden;
+  }
+  .scene{
+    position:relative;
+    width:100%;
+    height:100%;
+    min-height:390px;
+    overflow:hidden;
+    border:1px solid #24221f;
+    background:#0a0a0a;
+    cursor:crosshair;
+  }
+
+  /* Blank surveillance board: no scenery, just targets and clutter. */
+  .scene::before{
+    content:"";
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+    background:
+      radial-gradient(circle at 50% 48%,rgba(255,255,255,.018),transparent 48%),
+      #090909;
+  }
+  .scanlines{position:absolute;inset:0;pointer-events:none;z-index:9;background:repeating-linear-gradient(0deg,transparent 0 4px,rgba(255,255,255,.006) 4px 5px)}
+  .vignette{position:absolute;inset:0;pointer-events:none;z-index:10;box-shadow:inset 0 0 46px rgba(0,0,0,.52)}
+
+  #objectsLayer{position:absolute;inset:0;z-index:6}
+  .scene-object,.filler{
+    position:absolute;
+    transform:translate(-50%,-50%);
+    line-height:1;
+    white-space:nowrap;
+  }
+  .filler{
+    z-index:2;
+    pointer-events:none;
+    text-shadow:0 2px 3px #000;
+  }
+  .scene-object{
+    z-index:5;
+    min-width:44px;
+    min-height:44px;
+    padding:5px;
+    border:1px solid transparent;
+    background:transparent;
+    color:inherit;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:crosshair;
+    border-radius:2px;
+    text-shadow:0 2px 3px #000;
+    transition:filter .08s ease,transform .07s ease,border-color .08s ease,background .08s ease;
+  }
+  .scene-object:active{transform:translate(-50%,-50%) scale(.92)}
+  .scene-object.found{border-color:#7d786f;background:rgba(240,234,220,.055)}
+  .scene-object.miss{border-color:rgba(197,40,40,.85);background:rgba(160,29,29,.08)}
+  .glyph{position:relative;display:inline-flex;align-items:center;justify-content:center;font-size:var(--size,34px)}
+
+
+
+  .feedback{
+    position:absolute;left:50%;bottom:15px;transform:translateX(-50%);
+    z-index:30;opacity:0;pointer-events:none;
+    color:var(--red-bright);font-size:12px;font-weight:900;letter-spacing:.13em;
+    text-shadow:0 2px 0 #000;transition:opacity .08s ease;
+  }
+  .feedback.show{opacity:1}
+
+  .transition-card{
+    position:absolute;inset:0;z-index:40;display:none;align-items:center;justify-content:center;flex-direction:column;
+    background:rgba(5,5,5,.92);text-align:center;
+  }
+  .transition-card.show{display:flex}
+  .transition-card .big{font-size:clamp(28px,6vw,54px);font-weight:900;letter-spacing:.1em;text-indent:.1em}
+  .transition-card .small{margin-top:10px;color:var(--muted);font-size:12px;letter-spacing:.14em}
+
+  #endScreen{align-items:center;justify-content:center;flex-direction:column;padding:28px 20px}
+  .end-wrap{width:min(520px,100%);text-align:center}
+  .end-title{margin:0 0 30px;font-size:clamp(38px,8vw,68px);letter-spacing:.1em;text-indent:.1em;line-height:.95}
+  .results{border-top:1px solid #3d3932;border-bottom:1px solid #3d3932;padding:18px 0;margin-bottom:22px}
+  .result-row{display:flex;justify-content:space-between;gap:20px;padding:8px 4px;color:var(--muted);font-size:14px;letter-spacing:.06em}
+  .result-row strong{color:var(--text);font-size:16px}
+  .final-time{margin:26px 0 32px}
+  .final-time .label{display:block;color:var(--muted);font-size:13px;letter-spacing:.16em;margin-bottom:7px}
+
+  .shake{animation:shake .18s linear 1}
+  @keyframes shake{0%{transform:translateX(0)}25%{transform:translateX(-8px)}50%{transform:translateX(7px)}75%{transform:translateX(-4px)}100%{transform:translateX(0)}}
+
+  @media (max-width:600px){
+    body{padding:8px}
+    .screen{width:100%;height:calc(100vh - 16px);min-height:520px}
+    .topbar{height:48px;padding:0 11px;font-size:11px}.topbar strong{font-size:12px}
+    .command-wrap{min-height:78px;padding:10px 9px}
+    .scene-wrap{padding:7px}
+    .scene{min-height:360px}
+    .scene-object{min-width:36px;min-height:36px;padding:3px}
+    .glyph{font-size:var(--mobile-size,27px)}
+    .person-combo{transform:scale(.86)}
+  }
+  @media (max-width:420px){
+    .title{font-size:44px}
+    .scene{min-height:345px}
+    .command{font-size:20px}
+  }
+  @media (prefers-reduced-motion:reduce){.scene-object,.primary,.feedback{transition:none}.shake{animation:none}}
+</style>
+</head>
+<body>
+
+<section id="startScreen" class="screen active">
+  <h1 class="title">LOOKOUT</h1>
+  <div class="rule"></div>
+  <button id="startBtn" class="primary" type="button">START</button>
+</section>
+
+<section id="gameScreen" class="screen">
+  <div class="topbar">
+    <span>MISTAKES <strong id="mistakeLabel">0</strong></span>
+  </div>
+
+  <div id="gameArea" class="game-area">
+    <div class="command-wrap"><div id="command" class="command">FIND THE TARGET.</div></div>
+
+    <div class="scene-wrap">
+      <div id="scene" class="scene" aria-label="Lookout observation board">
+        <div id="objectsLayer"></div>
+        <div class="scanlines"></div><div class="vignette"></div>
+      </div>
+    </div>
+
+    <div id="feedback" class="feedback">WRONG TARGET +3.00</div>
+    <div id="transitionCard" class="transition-card" aria-live="polite">
+      <div id="transitionBig" class="big">CAMERA SHIFT</div>
+      <div id="transitionSmall" class="small">POSITIONS CHANGED</div>
+    </div>
+  </div>
+</section>
+
+<section id="endScreen" class="screen">
+  <div class="end-wrap">
+    <h2 class="end-title">AREA SECURED</h2>
+    <div class="results">
+      <div class="result-row"><span>MISTAKES</span><strong id="finalIncorrect">0</strong></div>
+    </div>
+    <div class="final-time">
+      <span class="label">FINAL TIME</span>
+      <canvas id="finalTimer" class="timer-canvas final-timer-canvas" width="720" height="160"></canvas>
+    </div>
+    <button id="restartBtn" class="primary" type="button">RESTART</button>
+  </div>
+</section>
+
+<script>
+(() => {
+  const TOTAL_TARGETS=50;
+  const WRONG_PENALTY_MS=3000;
+  const SHIFT_POINTS=new Set([10,20]);
+
+  const startScreen=document.getElementById("startScreen");
+  const gameScreen=document.getElementById("gameScreen");
+  const endScreen=document.getElementById("endScreen");
+  const startBtn=document.getElementById("startBtn");
+  const restartBtn=document.getElementById("restartBtn");
+  const mistakeLabel=document.getElementById("mistakeLabel");
+  const command=document.getElementById("command");
+  const gameArea=document.getElementById("gameArea");
+  const scene=document.getElementById("scene");
+  const objectsLayer=document.getElementById("objectsLayer");
+  const feedback=document.getElementById("feedback");
+  const transitionCard=document.getElementById("transitionCard");
+  const transitionBig=document.getElementById("transitionBig");
+  const transitionSmall=document.getElementById("transitionSmall");
+  const finalCorrect=document.getElementById("finalCorrect");
+  const finalIncorrect=document.getElementById("finalIncorrect");
+  const finalTimer=document.getElementById("finalTimer");
+
+  let targetQueue=[];
+  let targetIndex=0;
+  let mistakes=0;
+  let correct=0;
+  let penaltyMs=0;
+  let startedAt=0;
+  let locked=false;
+  let feedbackTimer=null;
+  let shiftTimer=null;
+  let positionSlots=[];
+  let slotIndex=0;
+
+  const targetDefs=[
+    {id:"police",prompt:"FIND THE POLICE OFFICER.",render:{emoji:"👮‍♂️"}},
+    {id:"video-camera",prompt:"FIND THE VIDEO CAMERA.",render:{emoji:"📹"}},
+    {id:"ninja",prompt:"FIND THE NINJA.",render:{emoji:"🥷"}},
+    {id:"briefcase",prompt:"FIND THE BRIEFCASE.",render:{emoji:"💼"}},
+    {id:"sunglasses",prompt:"FIND THE SUNGLASSES.",render:{emoji:"🕶️"}},
+    {id:"taxi",prompt:"FIND THE TAXI.",render:{emoji:"🚕"}},
+    {id:"scooter",prompt:"FIND THE MOTOR SCOOTER.",render:{emoji:"🛵"}},
+    {id:"old-man",prompt:"FIND THE OLD MAN.",render:{emoji:"👴"}},
+    {id:"suitcase",prompt:"FIND THE SUITCASE.",render:{emoji:"🧳"}},
+    {id:"newspaper",prompt:"FIND THE NEWSPAPER.",render:{emoji:"📰"}},
+    {id:"package",prompt:"FIND THE PACKAGE.",render:{emoji:"📦"}},
+    {id:"key",prompt:"FIND THE KEY.",render:{emoji:"🔑"}},
+    {id:"money-bag",prompt:"FIND THE MONEY BAG.",render:{emoji:"💰"}},
+    {id:"telephone",prompt:"FIND THE LANDLINE TELEPHONE.",render:{emoji:"☎️"}},
+    {id:"radio",prompt:"FIND THE RADIO.",render:{emoji:"📻"}},
+    {id:"telescope",prompt:"FIND THE TELESCOPE.",render:{emoji:"🔭"}},
+    {id:"magnifying-glass",prompt:"FIND THE MAGNIFYING GLASS.",render:{emoji:"🔎"}},
+    {id:"wine-glass",prompt:"FIND THE WINE GLASS.",render:{emoji:"🍷"}},
+    {id:"rose",prompt:"FIND THE ROSE.",render:{emoji:"🌹"}},
+    {id:"dog",prompt:"FIND THE DOG WITHOUT A VEST.",render:{emoji:"🐕"}},
+    {id:"camera",prompt:"FIND THE PHOTO CAMERA.",render:{emoji:"📷"}},
+    {id:"van",prompt:"FIND THE VAN.",render:{emoji:"🚐"}},
+    {id:"bicycle",prompt:"FIND THE BICYCLE.",render:{emoji:"🚲"}},
+    {id:"siren",prompt:"FIND THE SIREN.",render:{emoji:"🚨"}},
+    {id:"cigarette",prompt:"FIND THE CIGARETTE.",render:{emoji:"🚬"}},
+    {id:"bouquet",prompt:"FIND THE BOUQUET.",render:{emoji:"💐"}},
+    {id:"car",prompt:"FIND THE RED CAR.",render:{emoji:"🚗"}},
+    {id:"watch",prompt:"FIND THE WATCH.",render:{emoji:"⌚"}},
+    {id:"map",prompt:"FIND THE MAP.",render:{emoji:"🗺️"}},
+    {id:"umbrella",prompt:"FIND THE UMBRELLA.",render:{emoji:"☂️"}},
+    {id:"anchor",prompt:"FIND THE ANCHOR.",render:{emoji:"⚓"}},
+    {id:"hourglass",prompt:"FIND THE HOURGLASS.",render:{emoji:"⏳"}},
+    {id:"scissors",prompt:"FIND THE SCISSORS.",render:{emoji:"✂️"}},
+    {id:"bell",prompt:"FIND THE BELL.",render:{emoji:"🔔"}},
+    {id:"smartphone",prompt:"FIND THE SMARTPHONE.",render:{emoji:"📱"}},
+    {id:"laptop",prompt:"FIND THE LAPTOP.",render:{emoji:"💻"}},
+    {id:"printer",prompt:"FIND THE PRINTER.",render:{emoji:"🖨️"}},
+    {id:"coffee",prompt:"FIND THE CUP OF COFFEE.",render:{emoji:"☕"}},
+    {id:"pizza",prompt:"FIND THE PIZZA.",render:{emoji:"🍕"}},
+    {id:"bread",prompt:"FIND THE LOAF OF BREAD.",render:{emoji:"🍞"}},
+    {id:"book",prompt:"FIND THE BOOK.",render:{emoji:"📖"}},
+    {id:"envelope",prompt:"FIND THE ENVELOPE.",render:{emoji:"✉️"}},
+    {id:"lock",prompt:"FIND THE LOCK.",render:{emoji:"🔒"}},
+    {id:"cat",prompt:"FIND THE CAT.",render:{emoji:"🐈"}},
+    {id:"violin",prompt:"FIND THE VIOLIN.",render:{emoji:"🎻"}},
+    {id:"trumpet",prompt:"FIND THE TRUMPET.",render:{emoji:"🎺"}},
+    {id:"microphone",prompt:"FIND THE MICROPHONE.",render:{emoji:"🎤"}},
+    {id:"mirror",prompt:"FIND THE MIRROR.",render:{emoji:"🪞"}},
+    {id:"door",prompt:"FIND THE DOOR.",render:{emoji:"🚪"}},
+    {id:"detective",prompt:"FIND THE DETECTIVE.",render:{emoji:"🕵️‍♂️"}}
+  ];
+
+  const fillerDefs=[
+    {emoji:"👨🏻"},{emoji:"👩🏻"},{emoji:"👨🏽"},{emoji:"👩🏼"},{emoji:"👨🏼"},{emoji:"👩🏽"},{emoji:"🧔🏻"},{emoji:"👵🏻"},
+    {emoji:"🚙"},{emoji:"🚚"},{emoji:"🚜"},{emoji:"🏍️"},{emoji:"🛹"},{emoji:"🚌"},{emoji:"🚎"},
+    {emoji:"🖥️"},{emoji:"⌨️"},{emoji:"🖱️"},{emoji:"💾"},
+    {emoji:"🥐"},{emoji:"🍋"},{emoji:"🍊"},{emoji:"🍝"},{emoji:"🥖"},{emoji:"🍇"},{emoji:"🫒"},
+    {emoji:"🪑"},{emoji:"🪴"},{emoji:"🌿"},{emoji:"🌺"},{emoji:"🌻"},{emoji:"🪻"},{emoji:"🗑️"},{emoji:"🧹"},{emoji:"🪣"},
+    {emoji:"📜"},{emoji:"🖊️"},{emoji:"🧾"},{emoji:"🪙"},{emoji:"🕯️"},
+    {emoji:"🐦"},{emoji:"🕊️"},{emoji:"🐓"},{emoji:"🐀"},
+    {emoji:"🎷"},{emoji:"🎼"},{emoji:"🪗"},
+    {emoji:"⚱️"},{emoji:"🏺"},{emoji:"🧱"},{emoji:"🪟"},{emoji:"🪧"},{emoji:"🧺"},
+    {emoji:"👷‍♂️"},{emoji:"👨‍✈️"},{emoji:"🧑‍🍳"},{emoji:"🧑‍🌾"},{emoji:"🤵"},{emoji:"💂"},{emoji:"🧑‍💼"},{emoji:"🙎‍♂️"},
+    {emoji:"👞"},{emoji:"👠"},{emoji:"🧤"},{emoji:"🧦"},{emoji:"👕"},{emoji:"👖"},{emoji:"🥾"},{emoji:"🩴"}
+  ];
+
+  function showScreen(screenEl){
+    [startScreen,gameScreen,endScreen].forEach(s=>s.classList.remove("active"));
+    screenEl.classList.add("active");
+  }
+  function shuffle(array){
+    const a=[...array];
+    for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}
+    return a;
+  }
+  function rand(min,max){return min+Math.random()*(max-min)}
+  function pick(arr){return arr[Math.floor(Math.random()*arr.length)]}
+  function formatTime(ms){
+    const h=Math.max(0,Math.floor(ms/10));
+    const m=Math.floor(h/6000),s=Math.floor((h%6000)/100),hh=h%100;
+    return String(m).padStart(2,"0")+":"+String(s).padStart(2,"0")+"."+String(hh).padStart(2,"0");
+  }
+  function drawTimerCanvas(canvas,text){
+    const ctx=canvas.getContext("2d"),w=canvas.width,h=canvas.height;
+    ctx.clearRect(0,0,w,h);ctx.fillStyle="#f0eadc";ctx.textAlign="center";ctx.textBaseline="middle";
+    ctx.font='900 96px "Courier New", monospace';ctx.shadowColor="rgba(0,0,0,.95)";ctx.shadowBlur=8;ctx.shadowOffsetY=3;
+    ctx.fillText(text,w/2,h/2);
+  }
+
+  function buildPositionSlots(){
+    // 11 × 9 = 99 exclusive cells: 50 possible targets + 49 fillers.
+    // Each item gets its own cell, so overlaps are impossible.
+    const cols=11,rows=9,slots=[];
+    const left=4,right=96,top=6,bottom=94;
+    const cellW=(right-left)/cols,cellH=(bottom-top)/rows;
+    for(let r=0;r<rows;r++){
+      for(let c=0;c<cols;c++){
+        const cx=left+(c+.5)*cellW;
+        const cy=top+(r+.5)*cellH;
+        // Small jitter breaks the visible grid while staying safely inside the cell.
+        slots.push({
+          x:cx+rand(-cellW*.18,cellW*.18),
+          y:cy+rand(-cellH*.18,cellH*.18)
+        });
+      }
+    }
+    positionSlots=shuffle(slots);
+    slotIndex=0;
+  }
+  function makePosition(){
+    if(slotIndex>=positionSlots.length) buildPositionSlots();
+    return positionSlots[slotIndex++];
+  }
+
+  function renderVisual(r,size=26){
+    const span=document.createElement("span");
+    span.className="glyph";
+    span.textContent=r.emoji||"•";
+    span.style.setProperty("--size",size+"px");
+    span.style.setProperty("--mobile-size",Math.max(18,size-4)+"px");
+    return span;
+  }
+
+  function renderScene(){
+    objectsLayer.innerHTML="";
+    buildPositionSlots();
+
+    // Always place every potential game target. Their positions are regenerated on each camera shift.
+    targetDefs.forEach(t=>{
+      const p=makePosition();
+      const btn=document.createElement("button");btn.type="button";btn.className="scene-object";btn.dataset.target=t.id;
+      btn.style.left=p.x+"%";btn.style.top=p.y+"%";btn.setAttribute("aria-label",t.prompt.replace(/^FIND THE |^IDENTIFY THE /,"").replace(/\.$/,""));
+      btn.appendChild(renderVisual(t.render,34+Math.floor(Math.random()*4)));
+      btn.addEventListener("click",e=>{e.stopPropagation();handleObjectClick(t.id,btn)});
+      objectsLayer.appendChild(btn);
+    });
+
+    // Dense but clean clutter: every filler receives its own exclusive slot.
+    // Use unique fillers in each layout so repeated identical objects do not create
+    // unnecessary ambiguity (for example, several identical smartphones).
+    const fillers=shuffle(fillerDefs).slice(0,49);
+    fillers.forEach(f=>{
+      const p=makePosition();
+      const el=document.createElement("span");el.className="filler";el.style.left=p.x+"%";el.style.top=p.y+"%";
+      const size=28+Math.floor(Math.random()*7);el.appendChild(renderVisual(f,size));objectsLayer.appendChild(el);
+    });
+  }
+
+  function currentTarget(){return targetQueue[targetIndex]}
+  function updateCommand(){
+    const t=currentTarget();
+    command.textContent=t?t.prompt:"";
+  }
+
+  function wrongClick(btn=null){
+    if(locked)return;
+    mistakes++;penaltyMs+=WRONG_PENALTY_MS;mistakeLabel.textContent=String(mistakes);
+    if(btn){btn.classList.remove("miss");void btn.offsetWidth;btn.classList.add("miss");setTimeout(()=>btn.classList.remove("miss"),220)}
+    command.classList.remove("wrong");void command.offsetWidth;command.classList.add("wrong");setTimeout(()=>command.classList.remove("wrong"),220);
+    gameArea.classList.remove("shake");void gameArea.offsetWidth;gameArea.classList.add("shake");
+    feedback.textContent="WRONG TARGET +3.00";feedback.classList.add("show");
+    if(feedbackTimer)clearTimeout(feedbackTimer);feedbackTimer=setTimeout(()=>feedback.classList.remove("show"),520);
+  }
+
+  function handleObjectClick(id,btn){
+    if(locked)return;
+    const t=currentTarget();
+    if(!t||id!==t.id){wrongClick(btn);return}
+    locked=true;correct++;btn.classList.add("found");
+    setTimeout(()=>{
+      targetIndex++;
+      if(targetIndex>=TOTAL_TARGETS){finishGame();return}
+      if(SHIFT_POINTS.has(targetIndex)){cameraShift();return}
+      updateCommand();locked=false;
+    },145);
+  }
+
+  function cameraShift(){
+    locked=true;transitionBig.textContent="CAMERA SHIFT";transitionSmall.textContent="POSITIONS CHANGED";transitionCard.classList.add("show");
+    if(shiftTimer)clearTimeout(shiftTimer);
+    shiftTimer=setTimeout(()=>{
+      renderScene();updateCommand();transitionCard.classList.remove("show");locked=false;
+    },620);
+  }
+
+  function finishGame(){
+    locked=true;
+    const total=performance.now()-startedAt+penaltyMs;
+    finalIncorrect.textContent=String(mistakes);
+    drawTimerCanvas(finalTimer,formatTime(total));
+    showScreen(endScreen);
+  }
+
+  function startGame(){
+    if(feedbackTimer)clearTimeout(feedbackTimer);if(shiftTimer)clearTimeout(shiftTimer);
+    mistakes=0;correct=0;penaltyMs=0;targetIndex=0;locked=true;
+    mistakeLabel.textContent="0";feedback.classList.remove("show");transitionCard.classList.remove("show");
+
+    // 49 randomized targets + the detective as the final command.
+    const detective=targetDefs.find(t=>t.id==="detective");
+    const pool=targetDefs.filter(t=>t.id!=="detective");
+    targetQueue=[...shuffle(pool).slice(0,TOTAL_TARGETS-1),detective];
+
+    showScreen(gameScreen);renderScene();updateCommand();startedAt=performance.now();locked=false;
+  }
+
+  scene.addEventListener("click",()=>wrongClick());
+  startBtn.addEventListener("click",startGame);
+  restartBtn.addEventListener("click",startGame);
+  document.addEventListener("contextmenu",e=>e.preventDefault());
+  document.addEventListener("dragstart",e=>e.preventDefault());
+  drawTimerCanvas(finalTimer,"00:00.00");
+})();
+</script>
+</body>
+</html>
