@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<title>GETAWAY CAR</title>
+<style>
+  :root{
+    --bg:#080808;
+    --panel:#0d0d0d;
+    --text:#f0eadc;
+    --muted:#817b72;
+    --red:#8f1515;
+    --red-bright:#c52828;
+    --border:#292722;
+    --grid:#24221f;
+  }
+
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{
+    margin:0;
+    min-height:100%;
+    background:var(--bg);
+    color:var(--text);
+    font-family:"Courier New",Courier,monospace;
+  }
+  body{
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:18px;
+    overflow:auto;
+    background:
+      radial-gradient(circle at 50% 35%,rgba(255,255,255,.022),transparent 38%),
+      linear-gradient(#090909,#050505);
+    -webkit-user-select:none;
+    user-select:none;
+  }
+  button{font:inherit}
+
+  .timer-canvas{display:block;max-width:100%;height:auto;pointer-events:none}
+  .final-timer-canvas{width:min(360px,82vw);height:auto;margin:0 auto}
+
+  .screen{
+    display:none;
+    width:min(760px,96vw);
+    height:min(760px,92vh);
+    min-height:560px;
+    overflow:hidden;
+    border:1px solid #24221f;
+    background:#080808;
+  }
+  .screen.active{display:flex}
+
+  #startScreen{
+    align-items:center;
+    justify-content:center;
+    flex-direction:column;
+    gap:28px;
+    padding:24px;
+  }
+  .title{
+    margin:0;
+    max-width:100%;
+    text-align:center;
+    font-size:clamp(43px,9.4vw,94px);
+    line-height:.92;
+    letter-spacing:.09em;
+    text-indent:.09em;
+    font-weight:900;
+    text-shadow:0 3px 0 #000;
+  }
+  .rule{
+    width:min(360px,70vw);
+    height:1px;
+    background:linear-gradient(90deg,transparent,var(--muted),transparent);
+  }
+  .primary{
+    min-width:180px;
+    min-height:56px;
+    padding:14px 34px;
+    border:1px solid #48433b;
+    background:var(--text);
+    color:#0b0b0b;
+    font-weight:900;
+    font-size:18px;
+    letter-spacing:.14em;
+    cursor:pointer;
+    transition:transform .08s ease,background .12s ease;
+  }
+  .primary:active{transform:translateY(2px);background:#d7cfbf}
+
+  #gameScreen{flex-direction:column;position:relative}
+  .topbar{
+    flex:none;
+    height:54px;
+    display:flex;
+    align-items:center;
+    justify-content:flex-start;
+    padding:0 18px;
+    border-bottom:1px solid var(--border);
+    background:#090909;
+    color:var(--muted);
+    font-size:14px;
+    letter-spacing:.08em;
+    z-index:20;
+  }
+  .topbar strong{color:var(--text);font-size:15px}
+
+  .game-area{
+    position:relative;
+    flex:1 1 auto;
+    min-height:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:28px;
+    overflow:hidden;
+    background:#070707;
+  }
+
+  .garage-wrap{
+    position:relative;
+    width:min(570px,88%);
+    aspect-ratio:1;
+    flex:none;
+  }
+  .garage{
+    position:absolute;
+    inset:0;
+    border:1px solid #37342f;
+    background:
+      linear-gradient(rgba(255,255,255,.018) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(255,255,255,.018) 1px,transparent 1px),
+      #0a0a0a;
+    background-size:calc(100% / 6) calc(100% / 6);
+    box-shadow:inset 0 0 34px rgba(0,0,0,.5);
+    touch-action:none;
+    overflow:visible;
+  }
+  .garage::after{
+    content:"";
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.015);
+  }
+
+  .exit-gap{
+    position:absolute;
+    right:-4px;
+    top:calc((100% / 6) * 2 + 4px);
+    width:10px;
+    height:calc(100% / 6 - 8px);
+    background:#070707;
+    z-index:12;
+    pointer-events:none;
+  }
+  .exit-gap::before,
+  .exit-gap::after{
+    content:"";
+    position:absolute;
+    right:-6px;
+    width:7px;
+    height:7px;
+    background:var(--red-bright);
+    box-shadow:0 0 8px rgba(197,40,40,.45);
+  }
+  .exit-gap::before{top:1px}
+  .exit-gap::after{bottom:1px}
+
+  .vehicle{
+    position:absolute;
+    z-index:4;
+    padding:0;
+    border:1px solid #504b43;
+    border-radius:8px;
+    background:linear-gradient(145deg,#3a3834,#252421 55%,#1b1a18);
+    box-shadow:0 5px 12px rgba(0,0,0,.42),inset 0 0 0 1px rgba(255,255,255,.02);
+    cursor:grab;
+    touch-action:none;
+    transition:box-shadow .08s ease,border-color .08s ease,filter .08s ease;
+    outline:none;
+  }
+  .vehicle:active,.vehicle.dragging{cursor:grabbing;z-index:15}
+  .vehicle.dragging{
+    border-color:#81796d;
+    box-shadow:0 8px 18px rgba(0,0,0,.6),0 0 0 1px rgba(240,234,220,.10);
+    filter:brightness(1.13);
+  }
+  .vehicle.long{border-radius:7px}
+  .vehicle::before,
+  .vehicle::after{
+    content:"";
+    position:absolute;
+    background:#111;
+    border:1px solid #49453f;
+    opacity:.78;
+  }
+  .vehicle.horizontal::before{
+    left:12%;right:12%;top:17%;height:23%;
+    border-radius:3px 3px 1px 1px;
+  }
+  .vehicle.horizontal::after{
+    left:12%;right:12%;bottom:17%;height:23%;
+    border-radius:1px 1px 3px 3px;
+  }
+  .vehicle.vertical::before{
+    top:12%;bottom:12%;left:17%;width:23%;
+    border-radius:3px 1px 1px 3px;
+  }
+  .vehicle.vertical::after{
+    top:12%;bottom:12%;right:17%;width:23%;
+    border-radius:1px 3px 3px 1px;
+  }
+
+  .shade1{background:linear-gradient(145deg,#343330,#23221f 56%,#181816)}
+  .shade2{background:linear-gradient(145deg,#42403b,#2d2b27 56%,#1d1c19)}
+  .shade3{background:linear-gradient(145deg,#393631,#272521 56%,#191816)}
+  .shade4{background:linear-gradient(145deg,#49443c,#302d27 56%,#1d1b18)}
+
+  .vehicle.getaway{
+    border-color:#958d7e;
+    background:linear-gradient(145deg,#eee7d8,#c7c0b2 54%,#8e877b);
+    box-shadow:0 7px 16px rgba(0,0,0,.48),inset 0 0 0 1px rgba(255,255,255,.25);
+  }
+  .vehicle.getaway::before,.vehicle.getaway::after{
+    background:#25231f;
+    border-color:#6c665c;
+  }
+  .vehicle .tail-light{
+    position:absolute;
+    left:5px;
+    top:50%;
+    width:5px;
+    height:34%;
+    transform:translateY(-50%);
+    background:var(--red-bright);
+    box-shadow:0 0 6px rgba(197,40,40,.6);
+    z-index:3;
+  }
+  .vehicle .head-light{
+    position:absolute;
+    right:5px;
+    top:50%;
+    width:4px;
+    height:34%;
+    transform:translateY(-50%);
+    background:#f5efe2;
+    opacity:.78;
+    z-index:3;
+  }
+
+  .corridor{
+    position:absolute;
+    z-index:2;
+    pointer-events:none;
+    border:1px solid rgba(240,234,220,.08);
+    background:rgba(240,234,220,.018);
+    opacity:0;
+    transition:opacity .08s ease;
+  }
+  .corridor.show{opacity:1}
+
+  .transition-card{
+    position:absolute;
+    inset:0;
+    z-index:40;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    background:rgba(5,5,5,.92);
+    text-align:center;
+  }
+  .transition-card.show{display:flex}
+  .transition-card .big{
+    font-size:clamp(28px,6vw,54px);
+    font-weight:900;
+    letter-spacing:.1em;
+    text-indent:.1em;
+  }
+
+  #endScreen{
+    align-items:center;
+    justify-content:center;
+    flex-direction:column;
+    padding:28px 20px;
+  }
+  .end-wrap{width:min(520px,100%);text-align:center}
+  .end-title{
+    margin:0 0 34px;
+    font-size:clamp(38px,8vw,68px);
+    letter-spacing:.09em;
+    text-indent:.09em;
+    line-height:.95;
+  }
+  .final-time{margin:0 0 34px}
+  .final-time .label{
+    display:block;
+    color:var(--muted);
+    font-size:13px;
+    letter-spacing:.16em;
+    margin-bottom:8px;
+  }
+
+  @media (max-width:600px){
+    body{padding:8px}
+    .screen{width:100%;height:calc(100vh - 16px);min-height:520px}
+    .topbar{height:48px;padding:0 12px;font-size:12px}
+    .topbar strong{font-size:13px}
+    .game-area{padding:16px 12px}
+    .garage-wrap{width:min(94vw,540px)}
+    .title{font-size:clamp(40px,12vw,72px)}
+  }
+
+  @media (prefers-reduced-motion:reduce){
+    .vehicle,.primary,.corridor{transition:none}
+  }
+</style>
+</head>
+<body>
+
+<section id="startScreen" class="screen active">
+  <h1 class="title">GETAWAY CAR</h1>
+  <div class="rule"></div>
+  <button id="startBtn" class="primary" type="button">START</button>
+</section>
+
+<section id="gameScreen" class="screen">
+  <div class="topbar">
+    <span>GARAGE <strong id="roundLabel">1 / 5</strong></span>
+  </div>
+
+  <div class="game-area">
+    <div class="garage-wrap">
+      <div id="garage" class="garage" aria-label="Sliding car puzzle">
+        <div id="corridor" class="corridor"></div>
+        <div class="exit-gap" aria-hidden="true"></div>
+      </div>
+    </div>
+
+    <div id="transitionCard" class="transition-card" aria-live="polite">
+      <div class="big">GARAGE CLEARED</div>
+    </div>
+  </div>
+</section>
+
+<section id="endScreen" class="screen">
+  <div class="end-wrap">
+    <h2 class="end-title">GETAWAY COMPLETE</h2>
+    <div class="final-time">
+      <span class="label">FINAL TIME</span>
+      <canvas id="finalTimeResult" class="timer-canvas final-timer-canvas" width="720" height="160"></canvas>
+    </div>
+    <button id="restartBtn" class="primary" type="button">RESTART</button>
+  </div>
+</section>
+
+<script>
+(() => {
+  const SIZE = 6;
+  const INSET = 5;
+
+  // Each garage has its own vehicle layout. The five starting states were
+  // verified against the legal state graph; their optimal solution depths
+  // are 10, 12, 14, 17 and 20 moves respectively.
+  const rounds = [
+    {
+      vehicles:[
+        {id:"X",o:"H",len:2,fixed:2,shade:"",getaway:true},
+        {id:"A",o:"V",len:2,fixed:5,shade:"shade1"},
+        {id:"B",o:"V",len:2,fixed:4,shade:"shade3"},
+        {id:"C",o:"V",len:2,fixed:0,shade:"shade2"},
+        {id:"D",o:"V",len:2,fixed:4,shade:"shade4"},
+        {id:"E",o:"V",len:2,fixed:0,shade:"shade1"},
+        {id:"F",o:"H",len:2,fixed:4,shade:"shade2"},
+        {id:"G",o:"V",len:2,fixed:5,shade:"shade3"},
+        {id:"H",o:"H",len:2,fixed:3,shade:"shade4"},
+        {id:"I",o:"V",len:2,fixed:3,shade:"shade2"},
+        {id:"J",o:"V",len:2,fixed:2,shade:"shade1"}
+      ],
+      positions:[1,2,2,3,0,1,3,0,1,1,4]
+    },
+    {
+      vehicles:[
+        {id:"X",o:"H",len:2,fixed:2,shade:"",getaway:true},
+        {id:"A",o:"H",len:2,fixed:4,shade:"shade1"},
+        {id:"B",o:"V",len:2,fixed:3,shade:"shade3"},
+        {id:"C",o:"V",len:2,fixed:0,shade:"shade2"},
+        {id:"D",o:"H",len:2,fixed:0,shade:"shade4"},
+        {id:"E",o:"H",len:2,fixed:3,shade:"shade1"},
+        {id:"F",o:"V",len:2,fixed:5,shade:"shade2"},
+        {id:"G",o:"H",len:2,fixed:5,shade:"shade3"},
+        {id:"H",o:"V",len:2,fixed:2,shade:"shade4"},
+        {id:"I",o:"H",len:2,fixed:4,shade:"shade2"},
+        {id:"J",o:"H",len:2,fixed:1,shade:"shade1"},
+        {id:"K",o:"V",len:2,fixed:4,shade:"shade3"},
+        {id:"L",o:"H",len:2,fixed:3,shade:"shade4"},
+        {id:"M",o:"H",len:2,fixed:5,shade:"shade2"}
+      ],
+      positions:[1,2,0,2,4,2,1,2,0,0,0,1,4,0]
+    },
+    {
+      vehicles:[
+        {id:"X",o:"H",len:2,fixed:2,shade:"",getaway:true},
+        {id:"A",o:"H",len:2,fixed:0,shade:"shade1"},
+        {id:"B",o:"V",len:2,fixed:3,shade:"shade3"},
+        {id:"C",o:"V",len:2,fixed:2,shade:"shade2"},
+        {id:"D",o:"H",len:2,fixed:3,shade:"shade4"},
+        {id:"E",o:"V",len:2,fixed:3,shade:"shade1"},
+        {id:"F",o:"H",len:3,fixed:5,shade:"shade2"},
+        {id:"G",o:"V",len:2,fixed:5,shade:"shade3"},
+        {id:"H",o:"H",len:2,fixed:4,shade:"shade4"},
+        {id:"I",o:"V",len:2,fixed:0,shade:"shade2"},
+        {id:"J",o:"V",len:2,fixed:1,shade:"shade1"},
+        {id:"K",o:"H",len:2,fixed:5,shade:"shade3"},
+        {id:"L",o:"V",len:2,fixed:4,shade:"shade4"}
+      ],
+      positions:[0,2,3,2,4,1,1,0,4,4,0,4,0]
+    },
+    {
+      vehicles:[
+        {id:"X",o:"H",len:2,fixed:2,shade:"",getaway:true},
+        {id:"A",o:"V",len:2,fixed:3,shade:"shade1"},
+        {id:"B",o:"V",len:2,fixed:2,shade:"shade3"},
+        {id:"C",o:"V",len:2,fixed:4,shade:"shade2"},
+        {id:"D",o:"V",len:2,fixed:4,shade:"shade4"},
+        {id:"E",o:"H",len:2,fixed:4,shade:"shade1"},
+        {id:"F",o:"V",len:2,fixed:1,shade:"shade2"},
+        {id:"G",o:"V",len:2,fixed:2,shade:"shade3"},
+        {id:"H",o:"V",len:2,fixed:3,shade:"shade4"},
+        {id:"I",o:"V",len:2,fixed:0,shade:"shade2"},
+        {id:"J",o:"V",len:2,fixed:5,shade:"shade1"}
+      ],
+      positions:[0,2,0,1,3,2,3,2,0,3,2]
+    },
+    {
+      vehicles:[
+        {id:"X",o:"H",len:2,fixed:2,shade:"",getaway:true},
+        {id:"A",o:"V",len:2,fixed:4,shade:"shade1"},
+        {id:"B",o:"V",len:2,fixed:0,shade:"shade3"},
+        {id:"C",o:"H",len:2,fixed:0,shade:"shade2"},
+        {id:"D",o:"H",len:3,fixed:4,shade:"shade4"},
+        {id:"E",o:"H",len:2,fixed:5,shade:"shade1"},
+        {id:"F",o:"V",len:3,fixed:3,shade:"shade2"},
+        {id:"G",o:"V",len:2,fixed:0,shade:"shade3"},
+        {id:"H",o:"H",len:2,fixed:3,shade:"shade4"},
+        {id:"I",o:"H",len:2,fixed:1,shade:"shade2"},
+        {id:"J",o:"H",len:2,fixed:3,shade:"shade1"},
+        {id:"K",o:"V",len:2,fixed:5,shade:"shade3"},
+        {id:"L",o:"H",len:2,fixed:0,shade:"shade4"},
+        {id:"M",o:"V",len:2,fixed:5,shade:"shade2"}
+      ],
+      positions:[1,0,3,2,2,2,1,1,4,1,1,0,0,4]
+    }
+  ];
+
+  let vehicles = [];
+
+  const startScreen = document.getElementById("startScreen");
+  const gameScreen = document.getElementById("gameScreen");
+  const endScreen = document.getElementById("endScreen");
+  const startBtn = document.getElementById("startBtn");
+  const restartBtn = document.getElementById("restartBtn");
+  const roundLabel = document.getElementById("roundLabel");
+  const garage = document.getElementById("garage");
+  const corridor = document.getElementById("corridor");
+  const transitionCard = document.getElementById("transitionCard");
+  const finalTimeResult = document.getElementById("finalTimeResult");
+
+  let roundIndex = 0;
+  let positions = [];
+  let elements = [];
+  let locked = false;
+  let drag = null;
+
+  let accumulatedMs = 0;
+  let segmentStart = 0;
+  let timing = false;
+
+  function showScreen(screen){
+    [startScreen,gameScreen,endScreen].forEach(s=>s.classList.remove("active"));
+    screen.classList.add("active");
+  }
+
+  function formatTime(ms){
+    const totalHundredths = Math.max(0,Math.floor(ms/10));
+    const minutes = Math.floor(totalHundredths/6000);
+    const seconds = Math.floor((totalHundredths%6000)/100);
+    const hundredths = totalHundredths%100;
+    return String(minutes).padStart(2,"0") + ":" +
+      String(seconds).padStart(2,"0") + "." +
+      String(hundredths).padStart(2,"0");
+  }
+
+  function drawFinalTime(text){
+    const c = finalTimeResult;
+    const ctx = c.getContext("2d");
+    ctx.clearRect(0,0,c.width,c.height);
+    ctx.fillStyle = "#f0eadc";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = '900 96px "Courier New", monospace';
+    ctx.shadowColor = "rgba(0,0,0,.95)";
+    ctx.shadowBlur = 8;
+    ctx.shadowOffsetY = 3;
+    ctx.fillText(text,c.width/2,c.height/2);
+  }
+
+  function startTimer(){
+    segmentStart = performance.now();
+    timing = true;
+  }
+
+  function pauseTimer(){
+    if(!timing) return;
+    accumulatedMs += performance.now()-segmentStart;
+    timing = false;
+  }
+
+  function occupied(excludeIndex=-1){
+    const set = new Set();
+    vehicles.forEach((v,i)=>{
+      if(i===excludeIndex) return;
+      const p = positions[i];
+      for(let k=0;k<v.len;k++){
+        const r = v.o==="H" ? v.fixed : p+k;
+        const c = v.o==="H" ? p+k : v.fixed;
+        set.add(r+","+c);
+      }
+    });
+    return set;
+  }
+
+  function canPlace(index,pos,occ){
+    const v = vehicles[index];
+    if(pos<0 || pos+v.len>SIZE) return false;
+    for(let k=0;k<v.len;k++){
+      const r = v.o==="H" ? v.fixed : pos+k;
+      const c = v.o==="H" ? pos+k : v.fixed;
+      if(occ.has(r+","+c)) return false;
+    }
+    return true;
+  }
+
+  function movementRange(index){
+    const v = vehicles[index];
+    const occ = occupied(index);
+    const current = positions[index];
+    let min = current;
+    let max = current;
+    while(canPlace(index,min-1,occ)) min--;
+    while(canPlace(index,max+1,occ)) max++;
+    return {min,max};
+  }
+
+  function cellSize(){
+    return garage.clientWidth/SIZE;
+  }
+
+  function setVehicleRect(index,visualPos=positions[index]){
+    const v = vehicles[index];
+    const el = elements[index];
+    if(!el) return;
+    const cell = cellSize();
+
+    if(v.o==="H"){
+      el.style.left = (visualPos*cell + INSET) + "px";
+      el.style.top = (v.fixed*cell + INSET) + "px";
+      el.style.width = (v.len*cell - INSET*2) + "px";
+      el.style.height = (cell - INSET*2) + "px";
+    }else{
+      el.style.left = (v.fixed*cell + INSET) + "px";
+      el.style.top = (visualPos*cell + INSET) + "px";
+      el.style.width = (cell - INSET*2) + "px";
+      el.style.height = (v.len*cell - INSET*2) + "px";
+    }
+  }
+
+  function renderAll(){
+    elements.forEach((_,i)=>setVehicleRect(i));
+  }
+
+  function createVehicleElement(v,index){
+    const el = document.createElement("button");
+    el.type = "button";
+    el.className = `vehicle ${v.o==="H"?"horizontal":"vertical"} ${v.len===3?"long":""} ${v.shade||""} ${v.getaway?"getaway":""}`;
+    el.setAttribute("aria-label",v.getaway ? "Getaway car" : "Vehicle");
+    el.dataset.index = String(index);
+
+    if(v.getaway){
+      const tail = document.createElement("span");
+      tail.className = "tail-light";
+      const head = document.createElement("span");
+      head.className = "head-light";
+      el.append(tail,head);
+    }
+
+    el.addEventListener("pointerdown",onPointerDown);
+    return el;
+  }
+
+  function showCorridor(index,range){
+    const v = vehicles[index];
+    const cell = cellSize();
+    corridor.className = "corridor show";
+    if(v.o==="H"){
+      corridor.style.left = (range.min*cell + 2) + "px";
+      corridor.style.top = (v.fixed*cell + 2) + "px";
+      corridor.style.width = ((range.max-range.min+v.len)*cell - 4) + "px";
+      corridor.style.height = (cell - 4) + "px";
+    }else{
+      corridor.style.left = (v.fixed*cell + 2) + "px";
+      corridor.style.top = (range.min*cell + 2) + "px";
+      corridor.style.width = (cell - 4) + "px";
+      corridor.style.height = ((range.max-range.min+v.len)*cell - 4) + "px";
+    }
+  }
+
+  function hideCorridor(){
+    corridor.className = "corridor";
+  }
+
+  function onPointerDown(event){
+    if(locked || drag) return;
+    const index = Number(event.currentTarget.dataset.index);
+    const v = vehicles[index];
+    const range = movementRange(index);
+    const el = event.currentTarget;
+
+    drag = {
+      index,
+      pointerId:event.pointerId,
+      startX:event.clientX,
+      startY:event.clientY,
+      startPos:positions[index],
+      visualPos:positions[index],
+      range
+    };
+
+    el.setPointerCapture(event.pointerId);
+    el.classList.add("dragging");
+    showCorridor(index,range);
+
+    el.addEventListener("pointermove",onPointerMove);
+    el.addEventListener("pointerup",onPointerUp);
+    el.addEventListener("pointercancel",onPointerUp);
+    event.preventDefault();
+  }
+
+  function onPointerMove(event){
+    if(!drag || event.pointerId!==drag.pointerId) return;
+    const v = vehicles[drag.index];
+    const cell = cellSize();
+    const deltaPx = v.o==="H" ? event.clientX-drag.startX : event.clientY-drag.startY;
+    const raw = drag.startPos + deltaPx/cell;
+    drag.visualPos = Math.max(drag.range.min,Math.min(drag.range.max,raw));
+    setVehicleRect(drag.index,drag.visualPos);
+    event.preventDefault();
+  }
+
+  function onPointerUp(event){
+    if(!drag || event.pointerId!==drag.pointerId) return;
+    const local = drag;
+    const el = elements[local.index];
+
+    try{el.releasePointerCapture(event.pointerId)}catch(e){}
+    el.removeEventListener("pointermove",onPointerMove);
+    el.removeEventListener("pointerup",onPointerUp);
+    el.removeEventListener("pointercancel",onPointerUp);
+    el.classList.remove("dragging");
+    hideCorridor();
+
+    const snapped = Math.max(local.range.min,Math.min(local.range.max,Math.round(local.visualPos)));
+    positions[local.index] = snapped;
+    setVehicleRect(local.index);
+    drag = null;
+
+    if(local.index===0 && positions[0]===4){
+      finishRound();
+    }
+    event.preventDefault();
+  }
+
+  function buildRound(){
+    locked = true;
+    drag = null;
+    hideCorridor();
+    roundLabel.textContent = `${roundIndex+1} / ${rounds.length}`;
+    vehicles = rounds[roundIndex].vehicles;
+    positions = [...rounds[roundIndex].positions];
+
+    elements.forEach(el=>el.remove());
+    elements = vehicles.map((v,i)=>{
+      const el = createVehicleElement(v,i);
+      garage.appendChild(el);
+      return el;
+    });
+
+    requestAnimationFrame(()=>{
+      renderAll();
+      locked = false;
+      startTimer();
+    });
+  }
+
+  function animateEscape(done){
+    const el = elements[0];
+    locked = true;
+    const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if(reduce){done();return}
+
+    const baseLeft = parseFloat(el.style.left)||0;
+    el.style.transition = "left .36s cubic-bezier(.22,.7,.2,1), opacity .36s ease";
+    requestAnimationFrame(()=>{
+      el.style.left = (baseLeft + garage.clientWidth*.38) + "px";
+      el.style.opacity = "0";
+    });
+    setTimeout(()=>{
+      el.style.transition = "";
+      done();
+    },370);
+  }
+
+  function finishRound(){
+    if(locked) return;
+    pauseTimer();
+    animateEscape(()=>{
+      transitionCard.classList.add("show");
+      setTimeout(()=>{
+        if(roundIndex<rounds.length-1){
+          roundIndex++;
+          transitionCard.classList.remove("show");
+          buildRound();
+        }else{
+          transitionCard.classList.remove("show");
+          showResults();
+        }
+      },650);
+    });
+  }
+
+  function showResults(){
+    locked = true;
+    drawFinalTime(formatTime(accumulatedMs));
+    showScreen(endScreen);
+  }
+
+  function startGame(){
+    roundIndex = 0;
+    accumulatedMs = 0;
+    timing = false;
+    locked = false;
+    transitionCard.classList.remove("show");
+    drawFinalTime("00:00.00");
+    showScreen(gameScreen);
+    buildRound();
+  }
+
+  startBtn.addEventListener("click",startGame);
+  restartBtn.addEventListener("click",startGame);
+
+  window.addEventListener("resize",()=>{
+    if(gameScreen.classList.contains("active") && !drag){
+      renderAll();
+    }
+  });
+
+  document.addEventListener("contextmenu",event=>event.preventDefault());
+  document.addEventListener("dragstart",event=>event.preventDefault());
+  drawFinalTime("00:00.00");
+})();
+</script>
+</body>
+</html>
